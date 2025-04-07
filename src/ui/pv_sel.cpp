@@ -350,6 +350,22 @@ HOOK(bool, __fastcall, PVselPS4Init, 0x140202D50, uint64_t a1)
 	return originalPVselPS4Init(a1);
 }
 
+/*
+bool dialog_added = false;
+
+struct DialogInfo
+{
+	int32_t str_array_id;
+	uint8_t gap4[4];
+	prj::string std__string8;
+	uint8_t gap28[56];
+	void* ptr60;
+	bool bool68;
+};
+
+static FUNCTION_PTR(void, __fastcall, PutDialog, 0x1406083A0, DialogInfo* info);
+*/
+
 HOOK(bool, __fastcall, PVselPS4Ctrl, 0x1402033C0, uint64_t a1)
 {
 	int32_t sel_state = *reinterpret_cast<int32_t*>(a1 + 108);
@@ -376,6 +392,17 @@ HOOK(bool, __fastcall, PVselPS4Ctrl, 0x1402033C0, uint64_t a1)
 
 		pvsel::UpdateCtrl(pv_id, difficulty, edition);
 	}
+
+	/*
+	if (!dialog_added)
+	{
+		dialog_added = true;
+		DialogInfo dlg = { };
+		dlg.str_array_id = 53580;
+		dlg.bool68 = true;
+		PutDialog(&dlg);
+	}
+	*/
 
 	return ret;
 }

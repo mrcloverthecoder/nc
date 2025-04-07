@@ -12,6 +12,7 @@
 #include "nc_log.h"
 #include "game/game.h"
 #include "ui/pv_sel.h"
+#include "ui/customize_sel.h"
 #include "db.h"
 #include "save_data.h"
 #include "util.h"
@@ -441,6 +442,7 @@ extern "C"
 		InstallGameHooks();
 		InstallTargetHooks();
 		InstallPvSelHooks();
+		InstallCustomizeSelHooks();
 		InstallDatabaseHooks();
 		nc::CreateDefaultSaveData();
 		nc::InstallSaveDataHooks();

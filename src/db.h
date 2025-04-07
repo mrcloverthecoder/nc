@@ -26,6 +26,26 @@ enum ScoreMode : int32_t
 	ScoreMode_Max
 };
 
+struct ButtonSnd
+{
+	int32_t id = 0;
+	// NOTE: Use prj types to make it compatible with the game's code
+	prj::string name = "";
+	prj::string se_name = "";
+};
+
+enum SoundType : int32_t
+{
+	SoundType_Star = 0,
+	SoundType_Double = 1,
+	SoundType_Long = 2,
+	SoundType_StarLong = 3,
+	SoundType_StarDouble = 4,
+	SoundType_Link = 5,
+	SoundType_Rush = 6,
+	SoundType_Max
+};
+
 namespace db
 {
 	struct ChartAttributes
@@ -68,6 +88,8 @@ namespace db
 
 	const SongEntry* FindSongEntry(int32_t pv);
 	const DifficultyEntry* FindDifficultyEntry(int32_t pv, int32_t difficulty, int32_t edition);
+
+	const std::vector<ButtonSnd>* GetButtonSoundDB(int32_t type);
 }
 
 void InstallDatabaseHooks();

@@ -445,6 +445,8 @@ struct PvGameplayInfo
 {
 	int32_t type;
 	int32_t difficulty;
+	int32_t edition;
+	int32_t pv;
 };
 
 struct PvDscTarget
@@ -973,6 +975,7 @@ inline FUNCTION_PTR(PVGameData*, __fastcall, GetPVGameData, 0x140266720);
 inline FUNCTION_PTR(bool, __fastcall, IsInSongResults, 0x1401E8090);
 inline FUNCTION_PTR(int64_t, __fastcall, DrawTriangles, 0x1405B4C50, SpriteVertex* vertices, size_t vertex_count, int32_t res_mode, int32_t prio, uint32_t sprite_id);
 inline FUNCTION_PTR(int32_t, __fastcall, GetGameLocale, 0x1402C8D20);
+inline FUNCTION_PTR(char*, __fastcall, GetDivaSaveData, 0x1401D6510);
 
 diva::vec2 GetScaledPosition(const diva::vec2& v);
 

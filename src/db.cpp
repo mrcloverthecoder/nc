@@ -209,6 +209,27 @@ const db::DifficultyEntry* db::FindDifficultyEntry(int32_t pv, int32_t difficult
 	return nullptr;
 }
 
+//
+//
+//
+static std::vector<ButtonSnd> star_sound_list = {
+	{ 1, "Star A", "scratch1_mmv" },
+	{ 2, "Star B", "scratch2_mmv" },
+	{ 3, "Star C", "scratch3_mmv" },
+	{ 4, "Star D", "scratch4_mmv" },
+	{ 5, "Star E", "scratch5_mmv" },
+	{ 6, "Star F", "scratch6_mmv" },
+	{ 7, "Star G", "scratch7_mmv" },
+	{ 8, "Star H", "scratch8_mmv" },
+	{ 9, "Star I", "scratch9_mmv" }
+};
+
+const std::vector<ButtonSnd>* db::GetButtonSoundDB(int32_t type)
+{
+	if (type == SoundType_Star)
+		return &star_sound_list;
+}
+
 void InstallDatabaseHooks()
 {
 	INSTALL_HOOK(TaskPvDBCtrl);

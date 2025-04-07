@@ -54,6 +54,7 @@
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.props" />
   </ImportGroup>
   <ImportGroup Label="Shared">
   </ImportGroup>
@@ -182,6 +183,7 @@ copy /y "$(TargetPath)" "D:\Games\Steam\steamapps\common\Hatsune Miku Project DI
     <ClCompile Include="src\nc_state.cpp" />
     <ClCompile Include="src\save_data.cpp" />
     <ClCompile Include="src\thirdparty\toml.cpp" />
+    <ClCompile Include="src\ui\customize_sel.cpp" />
     <ClCompile Include="src\ui\pv_sel.cpp" />
     <ClCompile Include="src\util.cpp" />
   </ItemGroup>
@@ -201,10 +203,12 @@ copy /y "$(TargetPath)" "D:\Games\Steam\steamapps\common\Hatsune Miku Project DI
     <ClInclude Include="src\thirdparty\lazycsv.hpp" />
     <ClInclude Include="src\thirdparty\toml++\toml.hpp" />
     <ClInclude Include="src\thirdparty\toml.h" />
+    <ClInclude Include="src\ui\customize_sel.h" />
     <ClInclude Include="src\ui\pv_sel.h" />
     <ClInclude Include="src\util.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.targets" />
   </ImportGroup>
 </Project>
