@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include "target.h"
 
 struct PVGameData;
 struct TargetStateEx;
@@ -26,7 +27,7 @@ namespace score
 	constexpr int32_t GetTechZoneSuccessBonus() { return 5000; }
 
 	float GetTechZoneRetainedRate();
-	int32_t CalculateHitScoreBonus(TargetStateEx* target, int32_t* disp);
+	int32_t CalculateHitScoreBonus(TargetGroupEx& group, int32_t hit_state, int32_t* disp);
 	int32_t CalculateSustainBonus(TargetStateEx* target);
 	int32_t CalculateMaxSustainBonus(TargetStateEx* target);
 	int32_t IncreaseRushPopCount(TargetStateEx* target);

@@ -26,7 +26,7 @@ const int32_t* life_table = reinterpret_cast<const int32_t*>(0x140BE9EA0);
 
 static bool ParseExtraCSV(const void* data, size_t size)
 {
-	state.target_ex.clear();
+	state.groups_ex.clear();
 
 	if (data == nullptr || size == 0)
 		return false;
@@ -70,14 +70,13 @@ static bool ParseExtraCSV(const void* data, size_t size)
 			cell_index++;
 		}
 
-		if (index != -1)
+		if (index > -1 && sub_index > -1 && sub_index < 4)
 		{
-			TargetStateEx& ex = state.target_ex.emplace_back();
+			TargetGroupEx& ex = FindOrCreateTargetGroupEx(index);
 			ex.target_index = index;
-			ex.sub_index = sub_index;
-			ex.length = length > 0.0f ? length / 1000.0f : -1.0f;
-			ex.long_end = is_end;
-			ex.ResetPlayState();
+			ex.targets[sub_index].length = length > 0.0f ? length / 1000.0f : -1.0f;
+			ex.targets[sub_index].long_end = is_end;
+			ex.target_count++;
 		}
 	}
 
@@ -224,28 +223,16 @@ HOOK(int32_t, __fastcall, ParseTargets, 0x140245C50, PVGameData* pv_game)
 	//
 	int32_t ret = originalParseTargets(pv_game);
 
-	// NOTE: Initialize extra data for targets
+	// NOTE: Initialize target ex data
 	int32_t index = 0;
 	for (PvDscTargetGroup& group : pv_game->pv_data.targets)
 	{
 		for (int i = 0; i < group.target_count; i++)
 		{
-			// NOTE: Patch existing extra data with new information
-			//
-			if (TargetStateEx* ex = GetTargetStateEx(index, i); ex != nullptr)
-			{
-				ex->target_type = group.targets[i].type;
-				continue;
-			}
-
-			// NOTE: Append new extra data to the list
-			//
-			TargetStateEx ex = { };
-			ex.target_index = index;
-			ex.sub_index = i;
-			ex.target_type = group.targets[i].type;
-			ex.ResetPlayState();
-			state.target_ex.push_back(ex);
+			TargetGroupEx& ex = FindOrCreateTargetGroupEx(index);
+			ex.targets[i].parent = &ex;
+			ex.targets[i].target_type = group.targets[i].type;
+			ex.targets[i].target_pos = group.targets[i].target_pos;
 		}
 
 		index++;
@@ -294,7 +281,7 @@ HOOK(int32_t, __fastcall, ParseTargets, 0x140245C50, PVGameData* pv_game)
 					// NOTE: Auto-calculate long note length if necessary
 					if (ex->length < 0.0f)
 					{
-						PvDscTargetGroup* next_group = &pv_game->pv_data.targets[next->target_index];
+						PvDscTargetGroup* next_group = &pv_game->pv_data.targets[next->parent->target_index];
 						ex->length = static_cast<float>(next_group->hit_time - group->hit_time) / 1000000000.0f;
 					}
 				}
@@ -475,6 +462,7 @@ HOOK(int32_t, __fastcall, ParseTargets, 0x140245C50, PVGameData* pv_game)
 		score::CalculateScoreReference(&state.score, pv_game);
 	}
 
+	/*
 	for (TargetStateEx& ex : state.target_ex)
 	{
 		if (ex.next == nullptr && ex.prev == nullptr)
@@ -487,6 +475,7 @@ HOOK(int32_t, __fastcall, ParseTargets, 0x140245C50, PVGameData* pv_game)
 	{
 		nc::Print("TECHNICAL ZONE: %d -> %d  (%d)\n", tz.first_target_index, tz.last_target_index, tz.GetTargetCount());
 	}
+	*/
 
 	return pv_game->reference_score;
 }

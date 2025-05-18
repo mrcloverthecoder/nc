@@ -32,48 +32,55 @@ float score::GetTechZoneRetainedRate()
 	return TechZoneRetainedRate;
 }
 
-int32_t score::CalculateHitScoreBonus(TargetStateEx* target, int32_t* disp)
+int32_t score::CalculateHitScoreBonus(TargetGroupEx& group, int32_t hit_state, int32_t* disp)
 {
 	int32_t bonus = 0;
 	int32_t ct_bonus = 0;
 	int32_t bonus_disp = 0;
 
-	if (target->double_tapped)
+	hit_state = nc::GetBasicHitState(hit_state);
+	if (hit_state != BasicHitState_Worst)
 	{
-		bonus += DoubleTapScoreBonus;
-		state.score.double_tap_bonus += DoubleTapScoreBonus;
-	}
+		for (const TargetStateEx& target : group)
+		{
+			if (target.double_tapped)
+			{
+				bonus += DoubleTapScoreBonus;
+				state.score.double_tap_bonus += DoubleTapScoreBonus;
+			}
 
-	if (state.chance_time.CheckTargetInRange(target->target_index))
-	{
-		ct_bonus = ChanceTimeScoreBonus[target->hit_state];
-		bonus_disp += ct_bonus;
-	}
+			if (state.chance_time.CheckTargetInRange(group.target_index))
+			{
+				ct_bonus = ChanceTimeScoreBonus[hit_state];
+				bonus_disp += ct_bonus;
+			}
 
-	if (target->IsLinkNote())
-	{
-		bonus += LinkNoteScoreBonus[target->hit_state];
-		state.score.link_bonus += LinkNoteScoreBonus[target->hit_state];
+			if (target.IsLinkNote())
+			{
+				bonus += LinkNoteScoreBonus[hit_state];
+				state.score.link_bonus += LinkNoteScoreBonus[hit_state];
 
-		for (TargetStateEx* prev = target->prev; prev != nullptr; prev = prev->prev)
-			bonus_disp += prev->ct_score_bonus + prev->score_bonus;
-	}
-	else if (target->IsLongNoteEnd())
-	{
-		bonus += target->prev->score_bonus;
-		bonus_disp += target->prev->ct_score_bonus;
+				for (TargetStateEx* prev = target.prev; prev != nullptr; prev = prev->prev)
+					bonus_disp += prev->parent->ct_bonus_score + prev->parent->bonus_score;
+			}
+			else if (target.IsLongNoteEnd())
+			{
+				bonus += target.prev->parent->bonus_score;
+				bonus_disp += target.prev->parent->ct_bonus_score;
+			}
+		}
+
+		if (ct_bonus > 0)
+		{
+			state.score.ct_score_bonus += ct_bonus;
+			group.ct_bonus_score = ct_bonus;
+		}
 	}
 
 	if (disp)
 		*disp = bonus_disp + bonus;
 
-	if (ct_bonus > 0)
-	{
-		state.score.ct_score_bonus += ct_bonus;
-		target->ct_score_bonus = ct_bonus;
-	}
-
-	target->score_bonus += bonus;
+	group.bonus_score += bonus;
 	return bonus;
 }
 
@@ -82,14 +89,14 @@ int32_t score::CalculateSustainBonus(TargetStateEx* target)
 	if (!nc::IsHitCorrect(target->hit_state))
 		return 0;
 
-	int32_t bonus = 0;
-	while (target->sustain_bonus_time >= SustainBonusInterval)
-	{
-		bonus += SustainBonusScore[target->hit_state];
-		target->sustain_bonus_time -= SustainBonusInterval;
-	}
+	int32_t bonus_mul = static_cast<int32_t>(target->sustain_bonus_timer.Ellapsed() / SustainBonusInterval);
+	int32_t bonus = SustainBonusScore[nc::GetBasicHitState(target->hit_state)];
+	target->parent->bonus_score = util::Clamp(
+		target->parent->bonus_score + bonus,
+		0,
+		CalculateMaxSustainBonus(target)
+	);
 
-	target->score_bonus = util::Clamp(target->score_bonus + bonus, 0, CalculateMaxSustainBonus(target));
 	return bonus;
 }
 
@@ -102,33 +109,9 @@ int32_t score::IncreaseRushPopCount(TargetStateEx* target)
 {
 	target->bal_hit_count += 1;
 	target->bal_scale = util::Clamp(target->bal_hit_count / static_cast<float>(target->bal_max_hit_count), 0.0f, 1.0f);
-	target->score_bonus += RushNotePopBonus;
+	target->parent->bonus_score += RushNotePopBonus;
 	state.score.rush_bonus += RushNotePopBonus;
 	return RushNotePopBonus;
-}
-
-// NOTE: Calculates the base percentage of just the targets (excluding events such as Chance Time).
-//       Events and bonuses can be applied externally.
-static float CalculateFrankenBasePercentage(
-	const int32_t* judge,
-	const int32_t* judge_wrong,
-	const float* weights,
-	const float target_max_rate,
-	int32_t note_count
-)
-{
-	float percentage = 0.0;
-
-	// NOTE: Calculate target percentage
-	for (int32_t i = 0; i < 4; i++)
-	{
-		float correct_inc = judge[i] / static_cast<float>(note_count) * target_max_rate;
-		float wrong_inc = (judge_wrong[i] - judge[i]) / static_cast<float>(note_count) * target_max_rate;
-
-		percentage += (correct_inc * weights[i]) + (wrong_inc * weights[i] * WrongPercentageWeight);
-	}
-
-	return percentage;
 }
 
 static float CalculateF2ndBasePercentage(const int32_t* judge, const float target_max_rate, int32_t note_count)
@@ -143,31 +126,7 @@ float score::CalculatePercentage(PVGameData* pv_game)
 		return 0.0f;
 
 	float percentage = 0.0f;
-	if (state.GetScoreMode() == ScoreMode_Franken)
-	{
-		percentage = CalculateFrankenBasePercentage(
-			pv_game->judge_count_correct,
-			pv_game->judge_count,
-			JudgePercentageWeight[GetPvGameplayInfo()->difficulty],
-			state.score.target_max_rate,
-			static_cast<int32_t>(pv_game->pv_data.targets.size())
-		);
-
-		if (state.chance_time.IsValid())
-		{
-			// NOTE: Add chance time bonus score percentage
-			percentage += state.score.ct_score_bonus / static_cast<float>(state.score.max_ct_score_bonus) * ChanceTimePercBonus;
-		}
-
-		// NOTE: Add double tap bonus score percentage
-		if (state.score.max_double_tap_bonus > 0)
-			percentage += state.score.double_tap_bonus / static_cast<float>(state.score.max_double_tap_bonus) * DoubleTapPercBonus;
-
-		// NOTE: Add sustain hold bonus score percentage
-		if (state.score.max_sustain_bonus > 0)
-			percentage += state.score.sustain_bonus / static_cast<float>(state.score.max_sustain_bonus) * SustainHoldPercBonus;
-	}
-	else if (state.GetScoreMode() == ScoreMode_F2nd)
+	if (state.GetScoreMode() == ScoreMode_F2nd)
 	{
 		percentage = CalculateF2ndBasePercentage(
 			pv_game->judge_count_correct,

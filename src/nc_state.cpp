@@ -1,134 +1,4 @@
-#include "save_data.h"
-#include "sound_db.h"
-#include "shared.h"
-#include "game/hit_state.h"
 #include "nc_state.h"
-
-void TargetStateEx::ResetPlayState()
-{
-	hold_button = nullptr;
-	org = nullptr;
-	force_hit_state = HitState_None;
-	hit_state = HitState_None;
-	hit_time = 0.0f;
-	flying_time_max = 0.0f;
-	flying_time_remaining = 0.0f;
-	delta_time_max = 0.0f;
-	delta_time = 0.0f;
-	length_remaining = length;
-	kiseki_time = 0.0f;
-	alpha = 0.0f;
-	holding = false;
-	success = false;
-	current_step = false;
-	step_state = LinkStepState_None;
-	link_ending = false;
-	kiseki_pos = { 0.0f, 0.0f };
-	kiseki_dir = { 0.0f, 0.0f };
-	kiseki_dir_norot = { 0.0f, 0.0f };
-	kiseki.clear();
-	vertex_count_max = 0;
-	fix_long_kiseki = false;
-	sustain_bonus_time = 0.0f;
-	score_bonus = 0;
-	ct_score_bonus = 0;
-	double_tapped = false;
-	bal_hit_count = 0;
-	bal_scale = 0.0f;
-	ResetAetData();
-}
-
-void TargetStateEx::ResetAetData()
-{
-	aet::Stop(&target_aet);
-	aet::Stop(&button_aet);
-	aet::Stop(&bal_effect_aet);
-	kiseki.clear();
-}
-
-bool TargetStateEx::IsChainSucessful()
-{
-	for (TargetStateEx* ex = this; ex != nullptr; ex = ex->next)
-		if (!nc::IsHitGreat(ex->hit_state))
-			return false;
-
-	return true;
-}
-
-void TargetStateEx::StopAet(bool button, bool target, bool kiseki)
-{
-	if (button)
-		aet::Stop(&button_aet);
-	if (target)
-		aet::Stop(&target_aet);
-	aet::Stop(&bal_effect_aet);
-	if (kiseki)
-	{
-		this->kiseki.clear();
-		vertex_count_max = 0;
-	}
-}
-
-bool TargetStateEx::SetLongNoteAet()
-{
-	if (org == nullptr)
-		return false;
-
-	// NOTE: Copy target aet and set play params
-	target_aet = org->target_aet;
-	aet::SetPlay(target_aet, false);
-	aet::SetFrame(target_aet, 360.0f);
-
-	diva::vec3 scale = { 1.0f, 1.0f, 1.0f };
-	aet::SetScale(target_aet, &scale);
-
-	// NOTE: Free original aets
-	org->target_aet = 0;
-	aet::Stop(&org->button_aet);
-	aet::Stop(&org->target_eff_aet);
-	aet::Stop(&org->dword78);
-
-	return true;
-}
-
-bool TargetStateEx::SetLinkNoteAet()
-{
-	if (org == nullptr || !IsLinkNoteStart())
-		return false;
-
-	target_aet = org->target_aet;
-	button_aet = org->button_aet;
-	org->target_aet = 0;
-	org->button_aet = 0;
-	aet::Stop(&org->target_eff_aet);
-	aet::Stop(&org->dword78);
-
-	return true;
-}
-
-bool TargetStateEx::SetRushNoteAet()
-{
-	if (org == nullptr || !IsRushNote())
-		return false;
-
-	button_aet = org->button_aet;
-	aet::SetPlay(button_aet, false);
-	aet::SetFrame(button_aet, bal_time);
-
-	diva::vec2 scaled_pos = GetScaledPosition(target_pos);
-	diva::vec3 pos = { scaled_pos.x, scaled_pos.y, 0.0f };
-	aet::SetPosition(button_aet, &pos);
-
-	diva::vec3 scale = { 1.0f, 1.0f, 1.0f };
-	aet::SetScale(button_aet, &scale);
-
-	org->button_aet = 0;
-	aet::Stop(&org->target_eff_aet);
-	aet::Stop(&org->dword78);
-
-	if (bal_effect_aet != 0)
-		aet::SetPlay(bal_effect_aet, true);
-}
 
 void UIState::SetLayer(int32_t index, bool visible, const char* name, int32_t prio, int32_t flags)
 {
@@ -170,7 +40,7 @@ void UIState::ResetAllLayers()
 void StateEx::ResetPlayState()
 {
 	target_references.clear();
-	for (TargetStateEx& ex : target_ex)
+	for (TargetGroupEx& ex : groups_ex)
 		ex.ResetPlayState();
 	chance_time.ResetPlayState();
 	score.ct_score_bonus = 0;
@@ -196,7 +66,7 @@ void StateEx::ResetAetData()
 void StateEx::Reset()
 {
 	target_references.clear();
-	target_ex.clear();
+	groups_ex.clear();
 	tech_zones.clear();
 	tech_zone_index = 0;
 	chance_time.first_target_index = -1;
@@ -298,11 +168,29 @@ int32_t StateEx::CalculateTotalBonusScore() const
 	return score.ct_score_bonus + score.double_tap_bonus + score.sustain_bonus + score.link_bonus + score.rush_bonus;
 }
 
+TargetGroupEx* FindTargetGroupEx(int32_t index)
+{
+	for (TargetGroupEx& group : state.groups_ex)
+		if (group.target_index == index)
+			return &group;
+	return nullptr;
+}
+
+TargetGroupEx& FindOrCreateTargetGroupEx(int32_t index)
+{
+	if (TargetGroupEx* group = FindTargetGroupEx(index); group != nullptr)
+		return *group;
+
+	TargetGroupEx& group = state.groups_ex.emplace_back();
+	group.target_index = index;
+	return group;
+}
+
 TargetStateEx* GetTargetStateEx(int32_t index, int32_t sub_index)
 {
-	for (TargetStateEx& ex : state.target_ex)
-		if (ex.target_index == index && ex.sub_index == sub_index)
-			return &ex;
+	if (TargetGroupEx* group = FindTargetGroupEx(index); group != nullptr)
+		if (sub_index > -1 && sub_index < group->target_count)
+			return &group->targets[sub_index];
 	return nullptr;
 }
 

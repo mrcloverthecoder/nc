@@ -3,6 +3,7 @@
 #include <detours.h>
 #include <hooks.h>
 #include "note_link.h"
+#include "hit_state.h"
 #include "target.h"
 
 static void PatchCommonKiseki(PvGameTarget* target);
@@ -111,6 +112,142 @@ static std::string GetNoteLayerName(int32_t type, int32_t kind)
 	}
 
 	return prefix + kind_name + base_name + suffix;
+}
+
+void TargetStateEx::ResetPlayState()
+{
+	hold_button = nullptr;
+	org = nullptr;
+	force_hit_state = HitState_None;
+	hit_state = HitState_None;
+	hit_time = 0.0f;
+	flying_time_max = 0.0f;
+	flying_time_remaining = 0.0f;
+	delta_time_max = 0.0f;
+	delta_time = 0.0f;
+	length_remaining = length;
+	kiseki_time = 0.0f;
+	alpha = 0.0f;
+	holding = false;
+	success = false;
+	current_step = false;
+	step_state = LinkStepState_None;
+	link_ending = false;
+	kiseki_pos = { 0.0f, 0.0f };
+	kiseki_dir = { 0.0f, 0.0f };
+	kiseki_dir_norot = { 0.0f, 0.0f };
+	kiseki.clear();
+	vertex_count_max = 0;
+	fix_long_kiseki = false;
+	// sustain_bonus_time = 0.0f;
+	// score_bonus = 0;
+	// ct_score_bonus = 0;
+	sustain_bonus_timer.Stop();
+	double_tapped = false;
+	bal_hit_count = 0;
+	bal_scale = 0.0f;
+	ResetAetData();
+}
+
+void TargetStateEx::ResetAetData()
+{
+	aet::Stop(&target_aet);
+	aet::Stop(&button_aet);
+	aet::Stop(&bal_effect_aet);
+	kiseki.clear();
+}
+
+bool TargetStateEx::IsChainSucessful()
+{
+	for (TargetStateEx* ex = this; ex != nullptr; ex = ex->next)
+		if (!nc::IsHitGreat(ex->hit_state))
+			return false;
+
+	return true;
+}
+
+void TargetStateEx::StopAet(bool button, bool target, bool kiseki)
+{
+	if (button)
+		aet::Stop(&button_aet);
+	if (target)
+		aet::Stop(&target_aet);
+	aet::Stop(&bal_effect_aet);
+	if (kiseki)
+	{
+		this->kiseki.clear();
+		vertex_count_max = 0;
+	}
+}
+
+bool TargetStateEx::SetLongNoteAet()
+{
+	if (org == nullptr)
+		return false;
+
+	// NOTE: Copy target aet and set play params
+	target_aet = org->target_aet;
+	aet::SetPlay(target_aet, false);
+	aet::SetFrame(target_aet, 360.0f);
+
+	diva::vec3 scale = { 1.0f, 1.0f, 1.0f };
+	aet::SetScale(target_aet, &scale);
+
+	// NOTE: Free original aets
+	org->target_aet = 0;
+	aet::Stop(&org->button_aet);
+	aet::Stop(&org->target_eff_aet);
+	aet::Stop(&org->dword78);
+
+	return true;
+}
+
+bool TargetStateEx::SetLinkNoteAet()
+{
+	if (org == nullptr || !IsLinkNoteStart())
+		return false;
+
+	target_aet = org->target_aet;
+	button_aet = org->button_aet;
+	org->target_aet = 0;
+	org->button_aet = 0;
+	aet::Stop(&org->target_eff_aet);
+	aet::Stop(&org->dword78);
+
+	return true;
+}
+
+bool TargetStateEx::SetRushNoteAet()
+{
+	if (org == nullptr || !IsRushNote())
+		return false;
+
+	button_aet = org->button_aet;
+	aet::SetPlay(button_aet, false);
+	aet::SetFrame(button_aet, bal_time);
+
+	diva::vec2 scaled_pos = GetScaledPosition(target_pos);
+	diva::vec3 pos = { scaled_pos.x, scaled_pos.y, 0.0f };
+	aet::SetPosition(button_aet, &pos);
+
+	diva::vec3 scale = { 1.0f, 1.0f, 1.0f };
+	aet::SetScale(button_aet, &scale);
+
+	org->button_aet = 0;
+	aet::Stop(&org->target_eff_aet);
+	aet::Stop(&org->dword78);
+
+	if (bal_effect_aet != 0)
+		aet::SetPlay(bal_effect_aet, true);
+}
+
+void TargetGroupEx::ResetPlayState()
+{
+	for (int32_t i = 0; i < target_count; i++)
+		targets[i].ResetPlayState();
+
+	bonus_score = 0;
+	ct_bonus_score = 0;
 }
 
 HOOK(void, __fastcall, CreateTargetAetLayers, 0x14026F910, PvGameTarget* target)
@@ -272,7 +409,6 @@ HOOK(void, __fastcall, UpdateTargets, 0x14026DD80, PVGameArcade* data, float dt)
 			if (tgt->IsLongNoteStart() && tgt->holding)
 			{
 				tgt->length_remaining = fmaxf(tgt->length_remaining - dt, 0.0f);
-				tgt->sustain_bonus_time += dt;
 			}
 			else if (tgt->IsRushNote() && tgt->holding)
 			{

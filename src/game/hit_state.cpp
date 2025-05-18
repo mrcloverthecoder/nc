@@ -150,6 +150,35 @@ namespace nc
 	}
 }
 
+int32_t nc::GetBasicHitState(int32_t hit_state)
+{
+	switch (hit_state)
+	{
+	case HitState_Cool:
+	case HitState_CoolDouble:
+	case HitState_CoolTriple:
+	case HitState_CoolQuad:
+		return BasicHitState_Cool;
+	case HitState_Fine:
+	case HitState_FineDouble:
+	case HitState_FineTriple:
+	case HitState_FineQuad:
+		return BasicHitState_Fine;
+	case HitState_Safe:
+	case HitState_SafeDouble:
+	case HitState_SafeTriple:
+	case HitState_SafeQuad:
+		return BasicHitState_Safe;
+	case HitState_Sad:
+	case HitState_SadDouble:
+	case HitState_SadTriple:
+	case HitState_SadQuad:
+		return BasicHitState_Sad;
+	}
+
+	return BasicHitState_Worst;
+}
+
 int32_t nc::JudgeNoteHit(PVGameArcade* game, PvGameTarget** group, TargetStateEx** extras, int32_t group_count, bool* success)
 {
 	if (group_count < 1)

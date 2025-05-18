@@ -54,7 +54,7 @@ HOOK(int32_t, __fastcall, GetHitState, 0x14026BF60,
 				}
 
 				score::CalculateSustainBonus(tgt);
-				GetPVGameData()->ui.SetBonusText(tgt->score_bonus + tgt->ct_score_bonus, tgt->target_pos);
+				GetPVGameData()->ui.SetBonusText(tgt->parent->bonus_score + tgt->parent->ct_bonus_score, tgt->target_pos);
 
 				// NOTE: Check if the start target button has been released;
 				//       if it's the end note is not inside it's timing zone,
@@ -75,7 +75,7 @@ HOOK(int32_t, __fastcall, GetHitState, 0x14026BF60,
 				if (nc::CheckRushNotePops(tgt))
 				{
 					GetPVGameData()->score += score::IncreaseRushPopCount(tgt);
-					GetPVGameData()->ui.SetBonusText(tgt->score_bonus, tgt->target_pos);
+					GetPVGameData()->ui.SetBonusText(tgt->parent->bonus_score, tgt->target_pos);
 					state.PlayRushHitEffect(GetScaledPosition(tgt->target_pos), 0.6f * (1.0f + tgt->bal_scale), false);
 
 					if (tgt->target_type == TargetType_StarRush)
@@ -355,11 +355,11 @@ HOOK(int32_t, __fastcall, GetHitState, 0x14026BF60,
 			ex->hit_state = group[i]->hit_state;
 
 			int32_t disp_score = 0;
-			GetPVGameData()->score += score::CalculateHitScoreBonus(ex, &disp_score);
+			GetPVGameData()->score += score::CalculateHitScoreBonus(*ex->parent, final_hit_state, &disp_score);
 			GetPVGameData()->ui.SetBonusText(disp_score, ex->target_pos);
 
 			if (ex->IsLongNoteEnd())
-				state.score.sustain_bonus += ex->prev->score_bonus;
+				state.score.sustain_bonus += ex->prev->parent->bonus_score;
 		}
 	}
 
