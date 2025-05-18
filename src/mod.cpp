@@ -233,6 +233,7 @@ HOOK(int32_t, __fastcall, ParseTargets, 0x140245C50, PVGameData* pv_game)
 			ex.targets[i].parent = &ex;
 			ex.targets[i].target_type = group.targets[i].type;
 			ex.targets[i].target_pos = group.targets[i].target_pos;
+			ex.target_count = group.target_count;
 		}
 
 		index++;
