@@ -215,5 +215,5 @@ void TechZoneDispState::Disp() const
 
 	std::shared_ptr<AetElement>& tz = ::state.ui.GetLayer(LayerUI_BonusZone);
 	if (auto layout = tz->GetLayout("p_notes_num_rt"); layout.has_value())
-		DrawNumberWithF2ndFont(data->GetRemainingCount(), 2, layout.value().position, prio + 1, data->failed);
+		DrawNumberWithF2ndFont(data->GetRemainingCount(), 3, layout.value().position, prio + 1, data->failed);
 }

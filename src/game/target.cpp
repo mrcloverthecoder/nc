@@ -17,6 +17,8 @@ static constexpr const char* ButtonBaseNames[12] = {
 	"sankaku_long", "maru_long", "batsu_long", "shikaku_long"
 };
 
+static constexpr const char* PlatformPrefixes[3] = { "", "nsw_", "xbox_" };
+
 static constexpr bool ArrowSpriteLookup[13][4] = {
 	{ false, false, false, false }, // T S X O (PS)
 	{ true,  true,  false, false }, // 
@@ -32,6 +34,90 @@ static constexpr bool ArrowSpriteLookup[13][4] = {
 	{ false, true,  true,  false }, // 
 	{ true,  false, false, true  }  // 
 };
+
+static constexpr uint32_t ButtonSpriteIDs[3][5] = {
+	{ 0x000000B6, 0x000000B7, 0x000000B4, 0x000000B5, 0x0FD08752 }, // T S X O (PS) (SPR_GAM_CMN)
+	{ 0x89D6BC5D, 0x3688928E, 0xD3B2C230, 0x4EC68397, 0x0FD08752 }, // X Y B A (NSW)
+	{ 0x367EBA07, 0x89D6BC5D, 0xA87BA497, 0x3E02AA52, 0x0FD08752 }  // Y X A B (XBOX)
+};
+
+static constexpr uint32_t ArrowSpriteIDs[3][5] = {
+	{ 0x147EBFD4, 0xC27B4CA3, 0x06014095, 0x22CE0158, 0x00000000 },
+	{ 0x93F28B09, 0xEC80CF72, 0xE5393DAA, 0x06F66090, 0x00000000 },
+	{ 0x369BEB4D, 0x06F36B82, 0xCC908494, 0x06F66090, 0x00000000 }
+};
+
+static constexpr uint8_t KisekiColorLookup[3][4] = {
+	// 0 - Green   1 - Pink   2 - Blue   3 - Red   4 - Yellow   5 - Orange
+	{ 0, 1, 2, 3 },
+	{ 2, 0, 5, 3 },
+	{ 4, 2, 0, 3 }
+};
+
+static constexpr uint32_t KisekiSprites[6] = {
+	1140037210, 2946182585, 1305045037, 2660966235, 3052385779, 224411231
+};
+
+static int32_t GetMelodyIconStyle() { return *reinterpret_cast<const int32_t*>(0x141133D30); }
+static int32_t GetMelodyIconPlatform()
+{
+	switch (GetMelodyIconStyle())
+	{
+	case 5:
+	case 6:
+	case 7:
+	case 8:
+		return 1;
+	case 9:
+	case 10:
+	case 11:
+	case 12:
+		return 2;
+	}
+
+	return 0;
+}
+
+static int32_t GetTargetButtonKind(int32_t target_type)
+{
+	switch (target_type)
+	{
+	case TargetType_Triangle:
+	case TargetType_UpW:
+	case TargetType_TriangleRush:
+	case TargetType_TriangleLong:
+		return 0;
+	case TargetType_Square:
+	case TargetType_LeftW:
+	case TargetType_SquareRush:
+	case TargetType_SquareLong:
+		return 1;
+	case TargetType_Cross:
+	case TargetType_DownW:
+	case TargetType_CrossRush:
+	case TargetType_CrossLong:
+		return 2;
+	case TargetType_Circle:
+	case TargetType_RightW:
+	case TargetType_CircleRush:
+	case TargetType_CircleLong:
+		return 3;
+	case TargetType_Star:
+	case TargetType_StarW:
+	case TargetType_StarRush:
+	case TargetType_StarLong:
+	case TargetType_LinkStar:
+	case TargetType_LinkStarEnd:
+		return 4;
+	}
+
+	return 0;
+}
+
+static uint32_t GetKisekiSpriteID(int32_t target_type)
+{
+	return KisekiSprites[KisekiColorLookup[GetMelodyIconPlatform()][GetTargetButtonKind(target_type)]];
+}
 
 static bool CheckNoteUsesArrowSprite(int32_t index, int32_t type)
 {
@@ -60,7 +146,6 @@ static bool CheckNoteUsesArrowSprite(int32_t index, int32_t type)
 
 static std::string GetNoteLayerName(int32_t type, int32_t kind)
 {
-	int32_t index = *reinterpret_cast<const int32_t*>(0x141133D30);
 	std::string kind_name = kind == 1 ? "button_" : "target_";
 	std::string base_name = "";
 	std::string prefix = "";
@@ -83,32 +168,17 @@ static std::string GetNoteLayerName(int32_t type, int32_t kind)
 		base_name = "link";
 		break;
 	case TargetType_StarRush:
-		base_name = "star_bal";
+		base_name = "touch_bal";
 		break;
 	}
 
 	if (type >= TargetType_TriangleRush && type <= TargetType_SquareLong)
 	{
 		base_name = ButtonBaseNames[type - TargetType_TriangleRush];
+		prefix = PlatformPrefixes[GetMelodyIconPlatform()];
 
-		if (CheckNoteUsesArrowSprite(index, type))
+		if (CheckNoteUsesArrowSprite(GetMelodyIconStyle(), type))
 			suffix = "_01";
-
-		switch (index)
-		{
-		case 5:
-		case 6:
-		case 7:
-		case 8:
-			prefix = "nsw_";
-			break;
-		case 9:
-		case 10:
-		case 11:
-		case 12:
-			prefix = "xbox_";
-			break;
-		}
 	}
 
 	return prefix + kind_name + base_name + suffix;
@@ -613,8 +683,8 @@ static void CreateLongNoteKisekiBuffer(TargetStateEx* ex)
 	ex->kiseki.resize(ex->vertex_count_max);
 
 	// TODO: Calculate width based on long note length to prevent texture blurriness
-	float uv_width  = 128.0f;
-	float uv_height = 64.0f;
+	float uv_width  = 256.0f;
+	float uv_height = 128.0f;
 	float uv_pos_y  = uv_height / 2.0f;
 	uint32_t color = IsSuddenEquipped(GetPVGameData()) ? 0x00FFFFFF : 0xFFFFFFFF;
 
@@ -667,7 +737,7 @@ static void UpdateLongNoteKiseki(PVGameArcade* data, TargetStateEx* ex, float dt
 		}
 	}
 
-	const float uv_width = 128.0f;
+	const float uv_width = 256.0f;
 	const float px_width = 7.2f;
 	const diva::vec2 offset = GetLongKisekiOffset(ex);
 
@@ -695,52 +765,18 @@ static void UpdateLongNoteKiseki(PVGameArcade* data, TargetStateEx* ex, float dt
 
 static void DrawLongNoteKiseki(TargetStateEx* ex)
 {
-	if (ex->vertex_count_max != 0)
-	{
-		int32_t sprite_id = 0x3AB;
-		switch (ex->target_type)
-		{
-		case TargetType_TriangleLong:
-			sprite_id = 1140037210; // SPR_GAM_EXTRA_KISEKI02
-			break;
-		case TargetType_CircleLong:
-			sprite_id = 2660966235; // SPR_GAM_EXTRA_KISEKI03
-			break;
-		case TargetType_CrossLong:
-			sprite_id = 1305045037; // SPR_GAM_EXTRA_KISEKI04
-			break;
-		case TargetType_SquareLong:
-			sprite_id = 2946182585; // SPR_GAM_EXTRA_KISEKI05
-			break;
-		case TargetType_StarLong:
-			sprite_id = 3052385779; // SPR_GAM_EXTRA_KISEKI06
-			break;
-		}
+	if (!ex->IsLongNote() || ex->vertex_count_max < 1)
+		return;
 
-		DrawTriangles(ex->kiseki.data(), ex->vertex_count_max, 13, 7, sprite_id);
-	}
+	uint32_t sprite_id = GetKisekiSpriteID(ex->target_type);
+	DrawTriangles(ex->kiseki.data(), ex->vertex_count_max, 13, 7, sprite_id);
 }
 
 static uint32_t GetBalloonSpriteId(const TargetStateEx* ex)
 {
-	constexpr uint32_t PlaystationStyle[4] = { 182, 181, 180, 183 };
-
-	switch (ex->target_type)
-	{
-	case TargetType_TriangleRush:
-	case TargetType_CircleRush:
-	case TargetType_CrossRush:
-	case TargetType_SquareRush:
-	{
-		// TODO: Add style logic
-		int32_t base_id = ex->target_type - TargetType_TriangleRush;
-		return PlaystationStyle[base_id];
-	}
-	case TargetType_StarRush:
-		return 265324370;
-	}
-
-	return 0;
+	if (CheckNoteUsesArrowSprite(GetMelodyIconStyle(), ex->target_type))
+		return ArrowSpriteIDs[GetMelodyIconPlatform()][GetTargetButtonKind(ex->target_type)];
+	return ButtonSpriteIDs[GetMelodyIconPlatform()][GetTargetButtonKind(ex->target_type)];
 }
 
 static void DrawBalloonEffectNote(uint32_t id, const diva::vec2& pos, const diva::vec2& scale, float opacity)
