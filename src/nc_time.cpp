@@ -24,6 +24,11 @@ void nc::Timer::Start()
 	running = true;
 }
 
+void nc::Timer::Reset()
+{
+	start_time = GetCurrentTicks();
+}
+
 void nc::Timer::Stop(bool reset)
 {
 	start_time = 0;

@@ -33,7 +33,7 @@ namespace nc
 		return HitState_None;
 	}
 
-	static int32_t GetHitStateInternal(PVGameArcade* data, PvGameTarget* target, TargetStateEx* ex, ButtonState** hold_button, bool* double_tapped, bool* no_success)
+	static int32_t GetHitStateInternal(PVGameArcade* data, PvGameTarget* target, TargetStateEx* ex, int32_t* hold_button, bool* double_tapped, bool* no_success)
 	{
 		if (ex->force_hit_state != HitState_None)
 			return ex->force_hit_state;
@@ -95,8 +95,10 @@ namespace nc
 		}
 		else if (target->target_type >= TargetType_TriangleLong && target->target_type <= TargetType_SquareLong)
 		{
-			ButtonState& face = macro_state.buttons[Button_Triangle + (target->target_type - TargetType_TriangleLong)];
-			ButtonState& arrow = macro_state.buttons[Button_Up + (target->target_type - TargetType_TriangleLong)];
+			int32_t face_key = Button_Triangle + (target->target_type - TargetType_TriangleLong);
+			int32_t arrow_key = Button_Up + (target->target_type - TargetType_TriangleLong);
+			ButtonState& face = macro_state.buttons[face_key];
+			ButtonState& arrow = macro_state.buttons[arrow_key];
 
 			if (!ex->long_end)
 			{
@@ -104,7 +106,7 @@ namespace nc
 				{
 					hit = true;
 					wrong = false;
-					*hold_button = face.IsTapped() ? &face : &arrow;
+					*hold_button = face.IsTapped() ? face_key : arrow_key;
 				}
 				else if ((macro_state.GetTappedBitfield() & wrong_mask) != 0)
 				{
@@ -114,9 +116,9 @@ namespace nc
 			}
 			else
 			{
-				if (ex->prev->hold_button != nullptr)
+				if (ex->prev->hold_button != Button_Max)
 				{
-					hit = ex->prev->hold_button->IsReleased();
+					hit = macro_state.buttons[ex->prev->hold_button].IsReleased();
 					wrong = false;
 				}
 			}
@@ -190,7 +192,7 @@ int32_t nc::JudgeNoteHit(PVGameArcade* game, PvGameTarget** group, TargetStateEx
 		TargetStateEx* ex = extras[i];
 
 		// NOTE: Evaluate note hit
-		ButtonState* hold_button = nullptr;
+		int32_t hold_button = Button_Max;
 		bool double_tapped = false;
 		bool no_success = false;
 		int32_t hit_state = nc::GetHitStateInternal(game, target, ex, &hold_button, &double_tapped, &no_success);
@@ -232,10 +234,13 @@ int32_t nc::JudgeNoteHit(PVGameArcade* game, PvGameTarget** group, TargetStateEx
 
 bool nc::CheckLongNoteHolding(TargetStateEx* ex)
 {
-	if (ex->hold_button == nullptr)
-		return false;
+	if (ex->hold_button != Button_Max)
+	{
+		ex->holding = macro_state.buttons[ex->hold_button].IsDown();
+		return ex->holding;
+	}
 
-	ex->holding = ex->hold_button->IsDown();
+	ex->holding = false;
 	return ex->holding;
 }
 

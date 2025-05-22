@@ -89,15 +89,15 @@ int32_t score::CalculateSustainBonus(TargetStateEx* target)
 	if (!nc::IsHitCorrect(target->hit_state))
 		return 0;
 
-	int32_t bonus_mul = static_cast<int32_t>(target->sustain_bonus_timer.Ellapsed() / SustainBonusInterval);
-	int32_t bonus = SustainBonusScore[nc::GetBasicHitState(target->hit_state)];
-	target->parent->bonus_score = util::Clamp(
-		target->parent->bonus_score + bonus,
-		0,
-		CalculateMaxSustainBonus(target)
-	);
+	if (target->sustain_bonus_timer.Ellapsed() >= SustainBonusInterval)
+	{
+		int32_t bonus = SustainBonusScore[nc::GetBasicHitState(target->hit_state)];
+		target->parent->bonus_score += bonus;
+		target->sustain_bonus_timer.Reset();
+		return bonus;
+	}
 
-	return bonus;
+	return 0;
 }
 
 int32_t score::CalculateMaxSustainBonus(TargetStateEx* target)

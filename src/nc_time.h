@@ -8,6 +8,7 @@ namespace nc
 	{
 	public:
 		void Start();
+		void Reset();
 		void Stop(bool reset = false);
 		bool IsRunning() const;
 

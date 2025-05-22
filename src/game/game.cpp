@@ -11,6 +11,9 @@
 #include "hit_state.h"
 #include "score.h"
 
+static void ProcessNoteHit(const PvGameTarget& tgt, TargetStateEx& ex, int32_t hit_state);
+
+/*
 HOOK(int32_t, __fastcall, GetHitState, 0x14026BF60,
 	PVGameArcade* game,
 	bool* play_default_se,
@@ -391,6 +394,138 @@ HOOK(int32_t, __fastcall, GetHitState, 0x14026BF60,
 	}
 
 	return final_hit_state;
+}*/
+
+static bool play_default_se = false;
+
+HOOK(int32_t, __fastcall, GetHitState, 0x14026BF60,
+	PVGameArcade* game,
+	bool* play_default_se,
+	size_t* rating_count,
+	diva::vec2* rating_pos,
+	int32_t* a5,
+	SoundEffect* se,
+	int32_t* multi_count,
+	float* player_hit_time,
+	int32_t* target_index,
+	bool* is_success_note,
+	bool* slide,
+	bool* slide_chain,
+	bool* slide_chain_start,
+	bool* slide_chain_max,
+	bool* slide_chain_continues,
+	void* a16)
+{
+	macro_state.Update(game->ptr08, 0);
+
+	// NOTE: Reset state
+	::play_default_se = *play_default_se;
+	
+	// NOTE: Figure out which notes are going to be polled by the game now
+	std::pair<PvGameTarget*, TargetStateEx*> targets[4] = { };
+	TargetGroupEx* group = nullptr;
+	int32_t index = 0;
+
+	for (PvGameTarget* target = game->target; target != nullptr; target = target->next)
+	{
+		targets[index++] = std::make_pair(target, GetTargetStateEx(target));
+		if (index >= 4 || target->multi_count < 0 || target->multi_count != game->target->multi_count )
+			break;
+	}
+
+	if (index > 0)
+		group = targets[0].second->parent;
+
+	// NOTE: Update in-course sustain / rush notes
+	if (ShouldUpdateTargets())
+	{
+		for (TargetStateEx* tgt : state.target_references)
+		{
+			if (tgt->IsLongNoteStart() && tgt->holding)
+			{
+				bool is_in_zone = false;
+
+				// NOTE: Check if the end target is in it's timing window
+				if (tgt->next->org)
+				{
+					float time = tgt->next->org->flying_time_remaining;
+					is_in_zone = time >= game->sad_late_window && time <= game->sad_early_window;
+				}
+
+				score::CalculateSustainBonus(tgt);
+				if (tgt->parent)
+				{
+					int32_t bonus = tgt->parent->bonus_score + tgt->parent->ct_bonus_score;
+					GetPVGameData()->ui.SetBonusText(bonus, tgt->parent->CalculateCenter());
+				}
+
+				// NOTE: Check if the start target button has been released;
+				//       if it's the end note is not inside it's timing zone,
+				//       automatically mark it as a fail.
+				if (!nc::CheckLongNoteHolding(tgt) && !is_in_zone)
+				{
+					tgt->next->force_hit_state = HitState_Worst;
+					tgt->StopAet();
+					tgt->holding = false;
+					se_mgr.EndLongSE(true);
+					// GetPVGameData()->ui.RemoveBonusText();
+				}
+			}
+		}
+	}
+
+	int32_t hit_state = originalGetHitState(
+		game,
+		play_default_se,
+		rating_count,
+		rating_pos,
+		a5,
+		se,
+		multi_count,
+		player_hit_time,
+		target_index,
+		is_success_note,
+		slide,
+		slide_chain,
+		slide_chain_start,
+		slide_chain_max,
+		slide_chain_continues,
+		a16
+	);
+
+	if (!::play_default_se)
+	{
+		*play_default_se = ::play_default_se;
+		game->mute_slide_chime = true;
+	}
+
+	if (hit_state != HitState_None && group)
+	{
+		int32_t disp = 0;
+		int32_t bonus = score::CalculateHitScoreBonus(*group, hit_state, &disp);
+
+		GetPVGameData()->ui.SetBonusText(disp, group->CalculateCenter());
+	}
+
+	return hit_state;
+}
+
+HOOK(int32_t, __fastcall, GetHitStateInternal, 0x14026D2E0, PVGameArcade* game, PvGameTarget* target, uint16_t a3, uint16_t a4)
+{
+	int32_t hit_state = originalGetHitStateInternal(game, target, a3, a4);
+	if (nc::IsCustomTargetType(target->target_type))
+	{
+		if (TargetStateEx* ex = GetTargetStateEx(target); ex != nullptr)
+		{
+			bool success = false;
+			hit_state = nc::JudgeNoteHit(game, &target, &ex, 1, &success);
+
+			if (hit_state != HitState_None)
+				ProcessNoteHit(*target, *ex, hit_state);
+		}
+	}
+
+	return hit_state;
 }
 
 HOOK(void, __fastcall, CalculatePercentage, 0x140246130, PVGameData* pv_game)
@@ -475,9 +610,42 @@ HOOK(void, __fastcall, UpdateGaugeFrame, 0x14027A490, PVGameUI* ui)
 	state.tz_disp.Ctrl();
 }
 
+void ProcessNoteHit(const PvGameTarget& tgt, TargetStateEx& ex, int32_t hit_state)
+{
+	if (ex.IsLongNoteStart())
+	{
+		if (nc::IsHitCorrect(hit_state))
+		{
+			ex.CaptureSustainAet();
+			ex.sustain_bonus_timer.Start();
+			se_mgr.StartLongSE();
+			play_default_se = false;
+		}
+		else
+		{
+			if (ex.next)
+				ex.next->force_hit_state = hit_state;
+		}
+	}
+	else if (ex.IsLongNoteEnd())
+	{
+		if (ex.prev)
+			ex.prev->StopAet();
+
+		if (nc::IsHitCorrect(hit_state))
+		{
+
+		}
+
+		se_mgr.EndLongSE(!nc::IsHitCorrect(hit_state));
+		play_default_se = false;
+	}
+}
+
 void InstallGameHooks()
 {
 	INSTALL_HOOK(GetHitState);
+	INSTALL_HOOK(GetHitStateInternal);
 	INSTALL_HOOK(UpdateLife);
 	INSTALL_HOOK(ExecuteModeSelect);
 	INSTALL_HOOK(UpdateGaugeFrame);

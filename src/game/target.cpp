@@ -186,7 +186,7 @@ static std::string GetNoteLayerName(int32_t type, int32_t kind)
 
 void TargetStateEx::ResetPlayState()
 {
-	hold_button = nullptr;
+	hold_button = Button_Max;
 	org = nullptr;
 	force_hit_state = HitState_None;
 	hit_state = HitState_None;
@@ -250,7 +250,7 @@ void TargetStateEx::StopAet(bool button, bool target, bool kiseki)
 	}
 }
 
-bool TargetStateEx::SetLongNoteAet()
+bool TargetStateEx::CaptureSustainAet()
 {
 	if (org == nullptr)
 		return false;
@@ -318,6 +318,18 @@ void TargetGroupEx::ResetPlayState()
 
 	bonus_score = 0;
 	ct_bonus_score = 0;
+}
+
+diva::vec2 TargetGroupEx::CalculateCenter()
+{
+	if (target_count < 1)
+		return diva::vec2(0.0f, 0.0f);
+
+	diva::vec2 pos = { };
+	for (const TargetStateEx& child : *this)
+		pos = pos + child.target_pos;
+
+	return pos / target_count;
 }
 
 HOOK(void, __fastcall, CreateTargetAetLayers, 0x14026F910, PvGameTarget* target)

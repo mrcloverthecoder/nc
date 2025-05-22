@@ -4,6 +4,7 @@
 #include <array>
 #include <iterator>
 #include <nc_time.h>
+#include <input.h>
 
 enum TargetType : int32_t
 {
@@ -79,10 +80,11 @@ struct TargetStateEx
 	int32_t bal_max_hit_count = 0;
 
 	// NOTE: Gameplay state
-	ButtonState* hold_button = nullptr;
+	// ButtonState* hold_button = nullptr;
 	PvGameTarget* org = nullptr;
 	int32_t force_hit_state = HitState_None;
 	int32_t hit_state = HitState_None;
+	int32_t hold_button = Button_Max;
 	float hit_time = 0.0f;
 	float flying_time_max = 0.0f;
 	float flying_time_remaining = 0.0f;
@@ -125,7 +127,7 @@ struct TargetStateEx
 	void ResetAetData();
 	bool IsChainSucessful();
 	void StopAet(bool button = true, bool target = true, bool kiseki = true);
-	bool SetLongNoteAet();
+	bool CaptureSustainAet();
 	bool SetLinkNoteAet();
 	bool SetRushNoteAet();
 
@@ -196,11 +198,20 @@ struct TargetGroupEx
 	}
 
 	void ResetPlayState();
+	diva::vec2 CalculateCenter();
 
 	it begin() { return targets.begin(); }
 	cit cbegin() const { return targets.cbegin(); }
 	it end() { return targets.end() + target_count; }
 	cit cend() const { return targets.cend() + target_count; }
 };
+
+namespace nc
+{
+	inline bool IsCustomTargetType(int32_t target_type)
+	{
+		return target_type >= TargetType_Custom && target_type < TargetType_Max;
+	}
+}
 
 void InstallTargetHooks();

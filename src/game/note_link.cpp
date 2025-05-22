@@ -11,7 +11,6 @@ static bool CalculateDirection(TargetStateEx* ex)
 	return true;
 }
 
-
 void UpdateLinkStar(PVGameArcade* data, TargetStateEx* chain, float dt)
 {
 	// NOTE: Update link chain and determine which step we're currently on
