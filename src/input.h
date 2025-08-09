@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <stdint.h>
 #include "diva.h"
 
@@ -44,22 +45,33 @@ enum Stick : int32_t
 
 struct ButtonState
 {
-	static constexpr size_t MaxKeepStates = 32;
-
 	struct StateData
 	{
-		bool down;
-		bool up;
-		bool tapped;
-		bool released;
-	} data[MaxKeepStates];
+		bool down{};
+		bool up{};
+		bool tapped{};
+		bool released{};
+		std::chrono::steady_clock::time_point time;
+	};
 
-	inline StateData& Push()
+	std::vector<StateData> data;
+
+	inline StateData& Push(const std::chrono::steady_clock::time_point& time)
 	{
-		for (int32_t i = MaxKeepStates - 2; i >= 0; i--)
-			data[i + 1] = data[i];
+		// Erase data older than 100ms
+		// TODO: This could be optimized. This is guaranteed to be in descending order, so we could do a binary search
+		// to find the beginning point for notes to erase and remove them all out in one go.
+		while (!data.empty() && std::chrono::duration_cast<std::chrono::milliseconds>(time - data.back().time).count() > 100) 
+		{
+			data.pop_back();
+		}
 
-		memset(&data[0], 0, sizeof(StateData));
+		// Push new note to the front, make sure there is at least 2.
+		do 
+		{
+			data.insert(data.begin(), StateData{false, false, false, false, time});
+		} while (data.size() < 2);
+
 		return data[0];
 	}
 	
@@ -99,7 +111,7 @@ struct MacroState
 	}
 
 	bool Update(void* internal_handler, int32_t player_index);
-	void UpdateSticks(diva::InputState* input_state);
+	void UpdateSticks(diva::InputState* input_state, const std::chrono::steady_clock::time_point& time);
 	bool GetStarHit() const;
 	bool GetDoubleStarHit() const;
 	bool GetStarHitCancel() const;

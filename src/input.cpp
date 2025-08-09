@@ -1,3 +1,4 @@
+#include <chrono>
 #include <unordered_map>
 #include <bitset>
 #include <array>
@@ -95,15 +96,15 @@ static FUNCTION_PTR(bool, __fastcall, PollRepeatTapInput, 0x1402AA650, RepeatTap
 
 bool ButtonState::IsTappedInNearFrames() const
 {
-	int32_t lookup_count = NearFramesBaseCount * (game::GetFramerate() / NearFramesBaseRate);
+	// 3 frames, so 3 times 16.66ms ??? Let's make it 50ms
 	bool mask = false;
 
-	for (int32_t i = 0; i < lookup_count; i++)
+	for (auto& state : data)
 	{
-		if (i >= MaxKeepStates)
+		if (std::chrono::duration_cast<std::chrono::milliseconds>(data[0].time - state.time).count() > 50)
 			break;
 
-		mask = mask || data[i].tapped;
+		mask |= state.tapped;
 	}
 
 	return mask;
@@ -123,9 +124,11 @@ bool MacroState::Update(void* internal_handler, int32_t player_index)
 	diva::InputState* diva_input = diva::GetInputState(player_index);
 	device = diva_input->GetDevice();
 
+	auto time = std::chrono::steady_clock::now();
+
 	// NOTE: Update buttons
 	for (int32_t i = 0; i < Button_Max; i++)
-		buttons[i].Push();
+		buttons[i].Push(time);
 
 	int64_t key_states[8];
 	for (int i = 0; i < 8; i++)
@@ -154,11 +157,11 @@ bool MacroState::Update(void* internal_handler, int32_t player_index)
 		buttons[i].data[0].released = buttons[i].data[0].up && buttons[i].data[1].down;
 	}
 
-	UpdateSticks(diva_input);
+	UpdateSticks(diva_input, time);
 	return true;
 }
 
-void MacroState::UpdateSticks(diva::InputState* input_state)
+void MacroState::UpdateSticks(diva::InputState* input_state, const std::chrono::steady_clock::time_point& time)
 {
 	auto checkDeadzoned = [&](const diva::vec2& pos)
 	{
@@ -201,6 +204,7 @@ void MacroState::UpdateSticks(diva::InputState* input_state)
 		button.up = !button.down;
 		button.tapped = state->flicked;
 		// button.released = !button.tapped;
+		button.time = time;
 	};
 
 	updateStick(Stick_L);
