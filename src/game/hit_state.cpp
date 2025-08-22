@@ -186,6 +186,7 @@ int32_t nc::JudgeNoteHit(PVGameArcade* game, PvGameTarget** group, TargetStateEx
 					{
 						*success = true;
 						state.chance_time.successful = true;
+						state.chance_time.chance_star_hit_time = game->current_time;
 					}
 				}
 			}

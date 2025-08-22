@@ -386,6 +386,17 @@ HOOK(void, __fastcall, UpdateTargets, 0x14026DD80, PVGameArcade* data, float dt)
 		}
 	}
 
+	// I'm not 100% sure if this is the best place to put this, but it works, uses the region between hit time and the window for hitting cool, fine, or safe to judge.
+
+	if (state.chance_time.successful) {
+		if (data->current_time >= state.chance_time.chance_star_hit_time && data->current_time < state.chance_time.chance_star_hit_time + 0.1) {
+			bool hit = macro_state.GetDoubleStarHit();
+			if (hit) {
+				GetPVGameData()->is_success_branch = false;
+			}
+		}
+	}
+
 	originalUpdateTargets(data, dt);
 }
 
