@@ -39,6 +39,7 @@ enum DscOp : int32_t
 	DscOp_End    = 0,
 	DscOp_Time   = 1,
 	DscOp_Target = 6,
+	DscOp_ChangeField = 14,
 	DscOp_ModeSelect = 26,
 	DscOp_BarTimeSet = 28,
 	DscOp_TargetFlyingTime = 58,
@@ -106,6 +107,8 @@ static int32_t GetOpcodeLength(int32_t format, int32_t op)
 	}
 	else if (op == DscOp_TargetEffect && format == DscFormat_F2)
 		return 11;
+	else if (op == DscOp_ChangeField && format == DscFormat_F2)
+		return 2;
 	
 	if (const dsc::OpcodeInfo* info = dsc::GetOpcodeInfo(op); info != nullptr)
 		return format == DscFormat_AC ? info->length_old : info->length;
@@ -266,6 +269,16 @@ static bool ParseDsc(const int32_t* data, int32_t format, std::map<int32_t, DscF
 				had_target = false;
 			}
 
+			break;
+		case DscOp_ChangeField:
+			if (flags & MergeFlags_IgnorePV)
+			{
+				data += length;
+				break;
+			}
+
+			list.push_back(DscFrame::DscCommand(DscOp_ChangeField, { readNext() }));
+			data += length - 1;
 			break;
 		case DscOp_ModeSelect:
 		{
