@@ -41,6 +41,15 @@ namespace prj
 		}
 	};
 
+	struct string_range
+	{
+		const char* start;
+		const char* end;
+
+		string_range() : start(nullptr), end(nullptr) {}
+		string_range(const std::string& s) : start(s.c_str()), end(s.c_str() + s.size()) {}
+	};
+
 	template <class T>
 	struct default_delete
 	{
@@ -915,6 +924,26 @@ struct SoundEffect
 	prj::string chime;
 };
 
+struct AetSetInfo
+{
+	uint32_t id;
+	const char* name;
+	const char* ptr10;
+	const char* file_name;
+	const char* ptr20;
+	int32_t index;
+	uint32_t spr_set_id;
+};
+
+struct AetSceneInfo
+{
+	uint32_t id;
+	const char* name;
+	const char* str10;
+	int32_t dword18;
+	int32_t dword1C;
+};
+
 enum GameLocale : int32_t
 {
 	GameLocale_JP = 0,
@@ -1080,6 +1109,9 @@ inline FUNCTION_PTR(int64_t, __fastcall, DrawTriangles, 0x1405B4C50, SpriteVerte
 inline FUNCTION_PTR(int32_t, __fastcall, GetGameLocale, 0x1402C8D20);
 
 inline FUNCTION_PTR(bool, __fastcall, IsSuddenEquipped, 0x14024B720, PVGameData* pv_game);
+
+inline FUNCTION_PTR(AetSetInfo*, __fastcall, GetAetSetInfoByName, 0x140294490, void* a1, const prj::string_range& name);
+inline FUNCTION_PTR(AetSceneInfo*, __fastcall, GetAetSceneInfoByName, 0x140294610, void* a1, const prj::string_range& name);
 
 diva::vec2 GetScaledPosition(const diva::vec2& v);
 

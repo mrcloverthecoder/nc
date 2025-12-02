@@ -115,9 +115,25 @@ static bool ParsePVEntry(toml::table& node, db::SongEntry* entry)
 	entry->star_w_se_name = node["star_w_se_name"].value_or(DefaultStarSound);
 	entry->star_long_se_name = node["star_long_se_name"].value_or(DefaultStarSound);
 	entry->link_se_name = node["link_se_name"].value_or(DefaultStarSound);
-	entry->target_hit_effect_aetset_id = node["target_hit_effect_aetset_id"].value_or(0xFFFFFFFF);
-	entry->target_hit_effect_scene_id = node["target_hit_effect_scene_id"].value_or(0xFFFFFFFF);
-	entry->target_hit_effect_sprset_id = node["target_hit_effect_sprset_id"].value_or(0xFFFFFFFF);
+
+	if (!node.contains("hit_effect") || !node["hit_effect"].is_string())
+	{
+		entry->target_hit_effect_aetset_id = node["target_hit_effect_aetset_id"].value_or(0xFFFFFFFF);
+		entry->target_hit_effect_scene_id = node["target_hit_effect_scene_id"].value_or(0xFFFFFFFF);
+		entry->target_hit_effect_sprset_id = node["target_hit_effect_sprset_id"].value_or(0xFFFFFFFF);
+	}
+	else
+	{
+		std::string set_name = node["hit_effect"].value_or("?");
+		std::string scene_name = set_name + "_MAIN";
+		AetSetInfo* set_info = GetAetSetInfoByName(nullptr, set_name);
+		AetSceneInfo* scene_info = GetAetSceneInfoByName(nullptr, scene_name);
+
+		entry->target_hit_effect_aetset_id = set_info->id;
+		entry->target_hit_effect_sprset_id = set_info->spr_set_id;
+		entry->target_hit_effect_scene_id  = scene_info->id;
+	}
+
 	return true;
 }
 
