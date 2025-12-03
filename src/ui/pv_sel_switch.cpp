@@ -69,6 +69,7 @@ static FUNCTION_PTR(bool, __fastcall, IsPlaylistMode, 0x1406D8D50);
 static FUNCTION_PTR(void, __fastcall, PVListSetSelectedIndex, 0x140217500, pvsel::SelPvList* a1, int32_t a2, int32_t a3);
 static FUNCTION_PTR(void, __fastcall, PVSelectorSwitchChangeSortFilter, 0x1406F2F40, PVSelectorSwitch* a1, int32_t a2);
 static FUNCTION_PTR(bool, __fastcall, CheckSongPertains, 0x1406F3D40, PVSelectorSwitch* sel, const pvsel::PvData* pv, int32_t, int32_t);
+static FUNCTION_PTR(void, __fastcall, ImpUpdateDifficultyBeltAndSabi, 0x1406E0D90, void* a1, int32_t difficulty, int32_t edition, pvsel::SelPvList* pv_list, void* sabi, bool a6);
 
 static int32_t GetSelectedIndex(PVSelectorSwitch* sel)
 {
@@ -76,6 +77,13 @@ static int32_t GetSelectedIndex(PVSelectorSwitch* sel)
 		return sel->sel_pv_list.GetSongCount() - 1;
 
 	return pvsel::GetSelectedPVIndex(sel);
+}
+
+static void UpdateDifficultyBeltAndSabi(PVSelectorSwitch* sel)
+{
+	void* a1 = reinterpret_cast<char*>(sel) + 0x1A50 + 0x163E0;
+	void* sabi = reinterpret_cast<char*>(sel) + 0x258D8;
+	ImpUpdateDifficultyBeltAndSabi(a1, sel->difficulty, sel->edition, &sel->sel_pv_list, sabi, false);
 }
 
 HOOK(bool, __fastcall, PVSelectorSwitchCreateSortedPVList, 0x1406F3100, PVSelectorSwitch* sel)
@@ -136,6 +144,8 @@ HOOK(bool, __fastcall, PVSelectorSwitchCtrl, 0x1406EDC40, PVSelectorSwitch* sel)
 		{
 			PVSelectorSwitchChangeSortFilter(sel, 0);
 			style_dirty = true;
+			SetGlobalStateSelectedData(sel);
+			UpdateDifficultyBeltAndSabi(sel);
 		}
 
 		pvsel::SetSongToggleable(sel);

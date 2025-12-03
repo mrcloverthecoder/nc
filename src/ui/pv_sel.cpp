@@ -261,10 +261,23 @@ namespace pvsel
 void InstallPvSelSwitchHooks(); // NOTE: Defined in pv_sel_switch.cpp
 void InstallPvSelPS4Hooks();    // NOTE: Defined in pv_sel_ps4.cpp
 
+// NOTE: Implementation in `pv_sel_imp.asm`
+HOOK(pv_db::PvDBDifficulty*, __fastcall, FindDifficultyEntry, 0x1404BCA70, pv_db::PvDBEntry* pv, int32_t difficulty, int32_t edition);
+
+pv_db::PvDBDifficulty* FindDifficultyEntryImp(pv_db::PvDBEntry* pv, int32_t difficulty, int32_t edition)
+{
+	pv_db::PvDBDifficulty* entry = originalFindDifficultyEntry(pv, difficulty, edition);
+	if (pvsel::CheckSongHasStyleAvailable(pv->pv_id, difficulty, edition, GetState()->GetGameStyle()))
+		return entry;
+	return nullptr;
+}
+
 void InstallPvSelHooks()
 {
 	if (game::IsFutureToneMode())
 		InstallPvSelPS4Hooks();
 	else
 		InstallPvSelSwitchHooks();
+
+	INSTALL_HOOK(FindDifficultyEntry);
 }

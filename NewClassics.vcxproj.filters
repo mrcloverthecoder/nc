@@ -184,5 +184,8 @@
     <MASM Include="src\save_data_imp.asm">
       <Filter>Arquivos de Origem</Filter>
     </MASM>
+    <MASM Include="src\ui\pv_sel_imp.asm">
+      <Filter>Arquivos de Origem</Filter>
+    </MASM>
   </ItemGroup>
 </Project>

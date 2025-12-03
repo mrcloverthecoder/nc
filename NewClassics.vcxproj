@@ -239,6 +239,7 @@ echo "Post-build script was not found."
     <MASM Include="src\save_data_imp.asm">
       <FileType>Document</FileType>
     </MASM>
+    <MASM Include="src\ui\pv_sel_imp.asm" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
