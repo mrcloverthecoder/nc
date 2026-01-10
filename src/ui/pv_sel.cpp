@@ -264,12 +264,31 @@ void InstallPvSelPS4Hooks();    // NOTE: Defined in pv_sel_ps4.cpp
 // NOTE: Implementation in `pv_sel_imp.asm`
 HOOK(pv_db::PvDBDifficulty*, __fastcall, FindDifficultyEntry, 0x1404BCA70, pv_db::PvDBEntry* pv, int32_t difficulty, int32_t edition);
 
+#define DIFF_KEY(pv, diff, edition, style) ((((int64_t)pv & 0xFFFFFFFF) << 32) | (((int64_t)diff & 0xFF) << 24) | (((int64_t)edition & 0xFF) << 16) | (((int64_t)style & 0xFF) << 8))
+
+static std::map<int64_t, std::optional<pv_db::PvDBDifficulty>> patched_difficulties;
+
 pv_db::PvDBDifficulty* FindDifficultyEntryImp(pv_db::PvDBEntry* pv, int32_t difficulty, int32_t edition)
 {
 	pv_db::PvDBDifficulty* entry = originalFindDifficultyEntry(pv, difficulty, edition);
-	if (pvsel::CheckSongHasStyleAvailable(pv->pv_id, difficulty, edition, GetState()->GetGameStyle()))
+	if (GetState()->GetGameStyle() == GameStyle_Arcade)
 		return entry;
-	return nullptr;
+
+	if (!pvsel::CheckSongHasStyleAvailable(pv->pv_id, difficulty, edition, GetState()->GetGameStyle()))
+		return nullptr;
+
+	auto& patched = patched_difficulties[DIFF_KEY(pv->pv_id, difficulty, edition, GetState()->GetGameStyle())];
+	if (!patched.has_value() && entry)
+	{
+		patched = *entry;
+		const db::ChartEntry* chart = db::FindChart(pv->pv_id, difficulty, edition, GetState()->GetGameStyle());
+		if (chart)
+		{
+			patched->level = chart->difficulty_level;
+		}
+	}
+
+	return patched.has_value() ? &patched.value() : nullptr;
 }
 
 void InstallPvSelHooks()
