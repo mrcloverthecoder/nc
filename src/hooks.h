@@ -2,7 +2,7 @@
 
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
-#include <detours.h>
+#include <safetyhook/safetyhook.hpp>
 
 #define _CONCAT2(x, y) x##y
 #define CONCAT2(x, y) _CONCAT(x, y)
@@ -29,34 +29,13 @@ const HMODULE MODULE_HANDLE = GetModuleHandle(nullptr);
     GetProcAddress(LoadLibrary(TEXT(libraryName)), procName)
 
 #define HOOK(returnType, callingConvention, functionName, location, ...) \
-    typedef returnType callingConvention functionName##Delegate(__VA_ARGS__); \
-    functionName##Delegate* original##functionName = (functionName##Delegate*)(location); \
+    static SafetyHookInline g_##functionName##_hook {}; \
+    static void* g_##functionName##_addr = reinterpret_cast<void*>(location); \
+    static auto original##functionName = [](auto&&... args){ return g_##functionName##_hook.call<returnType>(std::forward<decltype(args)>(args)...); }; \
     returnType callingConvention implOf##functionName(__VA_ARGS__)
 
 #define INSTALL_HOOK(functionName) \
-    do { \
-        DetourTransactionBegin(); \
-        DetourUpdateThread(GetCurrentThread()); \
-        DetourAttach((void**)&original##functionName, implOf##functionName); \
-        DetourTransactionCommit(); \
-    } while(0)
-
-#define VTABLE_HOOK(returnType, callingConvention, className, functionName, ...) \
-    typedef returnType callingConvention className##functionName(className* This, __VA_ARGS__); \
-    className##functionName* original##className##functionName; \
-    returnType callingConvention implOf##className##functionName(className* This, __VA_ARGS__)
-
-#define INSTALL_VTABLE_HOOK(className, object, functionName, functionIndex) \
-    do { \
-        if (original##className##functionName == nullptr) \
-        { \
-            original##className##functionName = (*(className##functionName***)object)[functionIndex]; \
-            DetourTransactionBegin(); \
-            DetourUpdateThread(GetCurrentThread()); \
-            DetourAttach((void**)&original##className##functionName, implOf##className##functionName); \
-            DetourTransactionCommit(); \
-        } \
-    } while(0)
+    do { g_##functionName##_hook = safetyhook::create_inline(g_##functionName##_addr, implOf##functionName); } while (0)
 
 #define WRITE_MEMORY(location, type, ...) \
     do { \
