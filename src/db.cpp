@@ -1,6 +1,3 @@
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
-#include <detours.h>
 #include <map>
 #include "diva.h"
 #include "nc_log.h"

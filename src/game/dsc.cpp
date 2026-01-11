@@ -457,7 +457,7 @@ static bool MergeDscs(PVGamePvData& pv_data)
 	return true;
 }
 
-HOOK(bool, __fastcall, LoadDscCtrl, 0x14024E270, PVGamePvData& pv_data, prj::string& path, void* a3, bool a4)
+HOOK(bool, __fastcall, LoadDscCtrl, 0x14024E270, PVGamePvData* pv_data, prj::string& path, void* a3, bool a4)
 {
 	if (dsc_state == DscState_Idle)
 	{
@@ -468,10 +468,10 @@ HOOK(bool, __fastcall, LoadDscCtrl, 0x14024E270, PVGamePvData& pv_data, prj::str
 		dsc_data[1] = nullptr;
 	}
 
-	if (!dsc_ready[0] && originalLoadDscCtrl(pv_data, path, a3, a4))
+	if (!dsc_ready[0] && originalLoadDscCtrl(pv_data, path, a3, a4) )
 	{
 		dsc_ready[0] = true;
-		dsc_data[0] = pv_data.script_buffer;
+		dsc_data[0] = pv_data->script_buffer;
 	}
 
 	if (dsc_state == DscState_Load)
@@ -486,7 +486,7 @@ HOOK(bool, __fastcall, LoadDscCtrl, 0x14024E270, PVGamePvData& pv_data, prj::str
 
 	if (dsc_ready[0] && dsc_ready[1])
 	{
-		MergeDscs(pv_data);
+		MergeDscs(*pv_data);
 		if (dsc_state == DscState_Ready)
 			FileFree(&file_handler);
 
