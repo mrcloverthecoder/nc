@@ -2,7 +2,6 @@
 #include <Windows.h>
 #include <Shlwapi.h>
 #include <d3d11.h>
-#include <detours.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <vector>
