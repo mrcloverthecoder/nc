@@ -65,23 +65,23 @@ HOOK(uint32_t, __fastcall, CStageResultAetControllerInLoopOutGetSceneID, 0x14064
 	return patch_scene ? results::AetSceneID : id;
 }
 
-HOOK(void, __fastcall, CAetControllerInLoopOutSetLayer, 0x14065E7D0, void* a1, const prj::string& in, const prj::string& loop, const prj::string& out, int32_t prio)
+HOOK(void, __fastcall, CAetControllerInLoopOutSetLayer, 0x14065E7D0, void* a1, const prj::string* in, const prj::string* loop, const prj::string* out, int32_t prio)
 {
 	// NOTE: This is sort of hacky, I guess, but it works™
-	prj::string patched_in = in;
-	prj::string patched_lp = loop;
-	prj::string patched_out = out;
+	prj::string patched_in = *in;
+	prj::string patched_lp = *loop;
+	prj::string patched_out = *out;
 
-	if (util::StartsWith(in, "mode_tit_arcade") && util::StartsWith(loop, "mode_tit_arcade"))
+	if (util::StartsWith(*in, "mode_tit_arcade") && util::StartsWith(*loop, "mode_tit_arcade"))
 	{
 		if (state.GetGameStyle() != GameStyle_Arcade)
 		{
-			bool no_fail = util::Contains(in, "comp") || util::Contains(loop, "comp");
+			bool no_fail = util::Contains(*in, "comp") || util::Contains(*loop, "comp");
 			patched_in = GetModeLayerName(0, no_fail);
 			patched_lp = GetModeLayerName(1, no_fail);
 		}
 	}
-	else if (util::StartsWith(in, "win_arcard") && util::StartsWith(loop, "win_arcard"))
+	else if (util::StartsWith(*in, "win_arcard") && util::StartsWith(*loop, "win_arcard"))
 	{
 		if (nc::ShouldUseConsoleStyleWin())
 		{
@@ -94,9 +94,9 @@ HOOK(void, __fastcall, CAetControllerInLoopOutSetLayer, 0x14065E7D0, void* a1, c
 	originalCAetControllerInLoopOutSetLayer(a1, patched_in, patched_lp, patched_out, prio);
 }
 
-HOOK(void, __fastcall, CStageResultAetControllerSetLayer, 0x14065DBA0, void* a1, prj::string& name, int32_t prio, int32_t action)
+HOOK(void, __fastcall, CStageResultAetControllerSetLayer, 0x14065DBA0, void* a1, prj::string* name, int32_t prio, int32_t action)
 {
-	patch_scene = CheckLayerNameMatchesNC(name);
+	patch_scene = CheckLayerNameMatchesNC(*name);
 	originalCStageResultAetControllerSetLayer(a1, name, prio, action);
 	patch_scene = false;
 }
