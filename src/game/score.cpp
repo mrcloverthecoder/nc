@@ -188,7 +188,60 @@ float score::CalculatePercentage(PVGameData* pv_game)
 	return percentage * 100.0;
 }
 
-void score::CalculateScoreReference(ScoreState* ref, PVGameData* pv_game)
+static void CalcReferenceScoreMixed(ScoreState* ref, PVGameData* pv_game)
+{
+	const ChanceState& ct = state.chance_time;
+
+	size_t  cur_target_index    = 0;
+	int32_t total_double_bonus  = 0;
+	int32_t total_sustain_bonus = 0;
+	int32_t total_link_bonus    = 0;
+	int32_t total_tech_bonus    = 0;
+	int32_t total_chance_bonus  = 0;
+
+	for (const PvDscTargetGroup& group : pv_game->pv_data.targets)
+	{
+		for (int32_t sub_index = 0; sub_index < group.target_count; sub_index++)
+		{
+			const PvDscTarget& target = group.targets[sub_index];
+			TargetStateEx* ex = GetTargetStateEx(cur_target_index, sub_index);
+			
+			if (ex->IsNormalDoubleNote())
+				total_double_bonus += 200;
+
+			if (ex->IsLinkNote())
+				total_link_bonus += 200;
+
+			if (ex->IsLongNoteEnd())
+				total_sustain_bonus += score::CalculateMaxSustainBonus(ex->prev);
+		}
+
+		if (ct.IsValid())
+		{
+			// NOTE: Chance time bonus score should only be given once per group (multi- or single-note)
+			if (ct.CheckTargetInRange(cur_target_index))
+				total_chance_bonus += 1000;
+		}
+
+		for (const TechZoneState& tech_zone : state.tech_zones)
+		{
+			if (tech_zone.IsValid() && tech_zone.last_target_index == cur_target_index)
+				total_tech_bonus += score::GetTechZoneSuccessBonus();
+		}
+
+		pv_game->target_reference_scores[cur_target_index + 1] +=
+			total_double_bonus + total_sustain_bonus + total_link_bonus + total_tech_bonus + total_chance_bonus;
+
+		cur_target_index++;
+	}
+
+	pv_game->reference_score +=
+		total_double_bonus + total_sustain_bonus + total_link_bonus + total_chance_bonus + total_tech_bonus;
+	pv_game->reference_score_with_life +=
+		total_double_bonus + total_sustain_bonus + total_link_bonus + total_chance_bonus + total_tech_bonus;
+}
+
+static void CalcReferenceScoreConsole(ScoreState* ref, PVGameData* pv_game)
 {
 	const ChanceState& ct = state.chance_time;
 
@@ -211,7 +264,7 @@ void score::CalculateScoreReference(ScoreState* ref, PVGameData* pv_game)
 	for (size_t i = 0; i < pv_game->pv_data.targets.size(); i++)
 	{
 		const PvDscTargetGroup& group = pv_game->pv_data.targets[i];
-		
+
 		// NOTE: Calculate constant reference scores for percentage calculation
 		if (ct.CheckTargetInRange(i))
 			ref->max_ct_score_bonus += ChanceTimeScoreBonus[0];
@@ -239,5 +292,18 @@ void score::CalculateScoreReference(ScoreState* ref, PVGameData* pv_game)
 		for (TechZoneState& tz : state.tech_zones)
 			if (i == tz.last_target_index)
 				pv_game->target_reference_scores.back() += pv_game->reference_score * TechZoneRetainedRate;
+	}
+}
+
+void score::CalculateScoreReference(int32_t style, ScoreState* ref, PVGameData* pv_game)
+{
+	switch (style)
+	{
+	case GameStyle_Console:
+		CalcReferenceScoreConsole(ref, pv_game);
+		break;
+	case GameStyle_Mixed:
+		CalcReferenceScoreMixed(ref, pv_game);
+		break;
 	}
 }
