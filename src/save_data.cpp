@@ -4,9 +4,6 @@
 #include <vector>
 #include <string.h>
 #include <stdio.h>
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
-#include <detours.h>
 #include "hooks.h"
 #include "diva.h"
 #include "nc_log.h"
