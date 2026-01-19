@@ -113,13 +113,8 @@ HOOK(int32_t, __fastcall, GetHitState, 0x14026BF60,
 	void* a16)
 {
 	int32_t final_hit_state = HitState_None;
-	bool should_play_star_se = true;
-	bool schedule_star_se = false;
 	game_state.Reset();
-
-	// NOTE: Update input manager
 	macro_state.Update(game->ptr08, 0);
-	se_mgr.UpdateSchedules();
 
 	if (ShouldUpdateTargets())
 	{
@@ -276,6 +271,8 @@ HOOK(int32_t, __fastcall, GetHitState, 0x14026BF60,
 
 	// NOTE: Check sound priority
 	int32_t snd_prio = nc::GetSharedData().sound_prio;
+	bool should_play_star_se = true;
+
 	if (snd_prio == 2 && game_state.group.size() > 0)
 	{
 		for (PvGameTarget* target : game_state.group)
@@ -300,13 +297,9 @@ HOOK(int32_t, __fastcall, GetHitState, 0x14026BF60,
 	{
 		if (macro_state.GetStarHit())
 		{
-			if (schedule_star_se)
-				se_mgr.ScheduleStarSound();
-			else
-				se_mgr.PlayStarSE();
+			se_mgr.PlayStarSE();
+			game->mute_slide_chime = true;
 		}
-
-		game->mute_slide_chime = true;
 	}
 
 	return final_hit_state;
