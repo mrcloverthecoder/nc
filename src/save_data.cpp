@@ -196,6 +196,13 @@ HOOK(void, __fastcall, LoadSaveData, 0x1401D7FB0, void* a1)
 
 	if (data->header.shared_data_count > 0)
 		shared_data = *data->GetSharedData();
+
+	// NOTE: Remove unsupported features
+	if (data->header.version_major == 1 && data->header.version_minor == 3)
+	{
+		if (data->GetSharedData()->sound_prio == 1)
+			shared_data.sound_prio = 0;
+	}
 }
 
 // NOTE: Handle writing of save data file
