@@ -8,6 +8,92 @@
 #include "hit_state.h"
 #include "score.h"
 
+struct NCSharedGameState
+{
+	std::vector<PvGameTarget*> group;
+	bool mute_slide_chime;
+
+	NCSharedGameState()
+	{
+		group.reserve(4);
+		mute_slide_chime = false;
+	}
+
+	inline void Reset()
+	{
+		group.clear();
+		mute_slide_chime = false;
+	}
+
+} static game_state;
+
+static bool PlayNoteSoundEffectOnHit(PvGameTarget* target, TargetStateEx* ex);
+static bool CheckContinuousNoteSoundEffects(PvGameTarget* target, TargetStateEx* ex);
+
+HOOK(int32_t, __fastcall, GetHitStateInternal, 0x14026D2E0,
+	PVGameArcade* game,
+	PvGameTarget* target,
+	uint16_t a3,
+	uint16_t a4)
+{
+	game_state.group.push_back(target);
+
+	if (target->target_type < TargetType_Custom || target->target_type >= TargetType_Max)
+		return originalGetHitStateInternal(game, target, a3, a4);
+
+	TargetStateEx* ex = GetTargetStateEx(target);
+	if (!ex)
+		return HitState_Worst;
+
+	bool success = false;
+	int32_t hit_state = nc::JudgeNoteHit(game, &target, &ex, 1, &success);
+
+	if (success)
+		GetPVGameData()->is_success_branch = true;
+
+	if (hit_state != HitState_None)
+	{
+		if (ex->IsLongNoteStart())
+		{
+			if (ex->IsWrong())
+			{
+				state.PopTarget(ex);
+				ex->StopAet();
+				ex->next->force_hit_state = ex->hit_state;
+			}
+			else
+				ex->SetLongNoteAet();
+		}
+		else if (ex->IsRushNote())
+		{
+			if (!ex->IsWrong())
+			{
+				ex->SetRushNoteAet();
+				se_mgr.StartRushBackSE();
+			}
+			else
+				state.PopTarget(ex);
+		}
+		else if (ex->IsLongNoteEnd())
+		{
+			ex->prev->StopAet();
+			state.PopTarget(ex->prev);
+		}
+		else if (ex->IsLinkNoteEnd() && nc::IsHitGreat(hit_state))
+		{
+			// NOTE: Find chain start target
+			TargetStateEx* chain = nullptr;
+			for (chain = ex; chain != nullptr && chain->prev != nullptr; chain = chain->prev) {}
+
+			if (chain != nullptr)
+				chain->StopAet();
+			ex->StopAet();
+		}
+	}
+
+	return hit_state;
+}
+
 HOOK(int32_t, __fastcall, GetHitState, 0x14026BF60,
 	PVGameArcade* game,
 	bool* play_default_se,
@@ -29,6 +115,7 @@ HOOK(int32_t, __fastcall, GetHitState, 0x14026BF60,
 	int32_t final_hit_state = HitState_None;
 	bool should_play_star_se = true;
 	bool schedule_star_se = false;
+	game_state.Reset();
 
 	// NOTE: Update input manager
 	macro_state.Update(game->ptr08, 0);
@@ -91,296 +178,86 @@ HOOK(int32_t, __fastcall, GetHitState, 0x14026BF60,
 		}
 	}
 
-	// NOTE: Determine which targets to be updated and what type are them (custom or vanilla)
-	PvGameTarget* group[4] = { nullptr, nullptr, nullptr, nullptr };
-	int32_t group_count = 0;
-	bool has_custom_note = false;
-	bool has_vanilla_note = false;
+	final_hit_state = originalGetHitState(
+		game,
+		play_default_se,
+		rating_count,
+		rating_pos,
+		a5,
+		se,
+		multi_count,
+		player_hit_time,
+		target_index,
+		is_success_note,
+		slide,
+		slide_chain,
+		slide_chain_start,
+		slide_chain_max,
+		slide_chain_continues,
+		a16
+	);
 
-	for (PvGameTarget* target = game->target; target != nullptr; target = target->next)
-	{
-		if (group_count < 4)
-		{
-			group[group_count++] = target;
-			has_custom_note |= target->target_type >= TargetType_Custom;
-			has_vanilla_note |= target->target_type < TargetType_Custom;
-		}
+	if (!ShouldUpdateTargets())
+		return final_hit_state;
 
-		if (target->multi_count == -1 || target->multi_count != game->target->multi_count)
-			break;
-	}
-
-	// NOTE: Issue a warning if there's a multi mixing custom and vanilla notes,
-	//       as that is not currently supported.
-	if (has_custom_note && has_vanilla_note)
-	{
-		nc::Print("Target #%d is a multi note that mixes Vanilla and custom notes. That is not supported and might cause some issues.", group[0]->target_index);
-	}
-
-	// NOTE: Check sound prio
-	int32_t snd_prio = nc::GetSharedData().sound_prio;
-	if (ShouldUpdateTargets() && snd_prio != 0)
-	{
-		if (group_count > 0)
-		{
-			bool in_window = group[0]->flying_time_remaining >= game->sad_late_window && group[0]->flying_time_remaining <= game->sad_early_window;
-			bool wbutton = group[0]->target_type >= TargetType_UpW && group[0]->target_type <= TargetType_LeftW;
-			bool wstar = group[0]->target_type == TargetType_StarW;
-			bool button_tapped = (macro_state.GetTappedBitfield() & GetMainButtonsMask()) != 0;
-
-			if (in_window && snd_prio == 1) // Delay
-			{
-				if (wbutton && button_tapped)
-				{
-					*play_default_se = false;
-					se_mgr.ScheduleButtonSound();
-				}
-				else if (wstar)
-				{
-					schedule_star_se = true;
-					game->mute_slide_chime = true;
-				}
-			}
-			else if (in_window && snd_prio == 2) // Mute
-			{
-				if (wbutton && game->bool1328E)
-					*play_default_se = false;
-				else if (wstar && macro_state.GetStarHit())
-				{
-					should_play_star_se = false;
-					game->mute_slide_chime = true;
-				}
-			}
-		}
-	}
-
-	if (has_vanilla_note || !ShouldUpdateTargets() || group_count < 1)
-	{
-		final_hit_state = originalGetHitState(
-			game,
-			play_default_se,
-			rating_count,
-			rating_pos,
-			a5,
-			se,
-			multi_count,
-			player_hit_time,
-			target_index,
-			is_success_note,
-			slide,
-			slide_chain,
-			slide_chain_start,
-			slide_chain_max,
-			slide_chain_continues,
-			a16
-		);
-	}
-	else if (has_custom_note)
-	{
-		// NOTE: Set default return values
-		*is_success_note = false;
-		*slide = false;
-		*slide_chain = false;
-		*slide_chain_start = false;
-		*slide_chain_max = false;
-		*slide_chain_continues = false;
-		bool success = false;
-
-		// NOTE: Get extra data for the targets
-		TargetStateEx* extras[4] = { nullptr, nullptr, nullptr, nullptr };
-		for (int i = 0; i < group_count; i++)
-			extras[i] = GetTargetStateEx(group[i]);
-
-		// NOTE: Judge hit and set post-hit information
-		int32_t hit_state = nc::JudgeNoteHit(game, group, extras, group_count, &success);
-		if (hit_state != HitState_None)
-		{
-			final_hit_state = hit_state;
-			*multi_count = group_count;
-			*target_index = group[0]->target_index;
-			*player_hit_time = group[0]->player_hit_time;
-			
-			if (success)
-				GetPVGameData()->is_success_branch = true;
-
-			for (int i = 0; i < group_count; i++)
-			{
-				PvGameTarget* tgt = group[i];
-				TargetStateEx* ex = extras[i];
-
-				if (ex->IsLongNoteStart())
-				{
-					if (ex->IsWrong())
-					{
-						state.PopTarget(ex);
-						ex->StopAet();
-						ex->next->force_hit_state = ex->hit_state;
-					}
-					else
-						ex->SetLongNoteAet();
-				}
-				else if (ex->IsRushNote())
-				{
-					if (!ex->IsWrong())
-					{
-						ex->SetRushNoteAet();
-						se_mgr.StartRushBackSE();
-					}
-					else
-						state.PopTarget(ex);
-				}
-				else if (ex->IsLongNoteEnd())
-				{
-					ex->prev->StopAet();
-					state.PopTarget(ex->prev);
-				}
-				else if (ex->IsLinkNoteEnd() && nc::IsHitGreat(hit_state))
-				{
-					// NOTE: Find chain start target
-					TargetStateEx* chain = nullptr;
-					for (chain = ex; chain != nullptr && chain->prev != nullptr; chain = chain->prev) { }
-
-					if (chain != nullptr)
-						chain->StopAet();
-					ex->StopAet();
-				}
-
-				rating_pos[(*rating_count)++] = tgt->target_pos;
-
-				game->EraseTarget(tgt);
-				game->RemoveTargetAet(tgt);
-
-				// NOTE: Play note hit effect
-				//
-				int32_t hit_effect_index = -1;
-				switch (ex->hit_state)
-				{
-				case HitState_Cool:
-					hit_effect_index = 1;
-					break;
-				case HitState_Fine:
-					hit_effect_index = 2;
-					break;
-				case HitState_Safe:
-					hit_effect_index = 3;
-					break;
-				case HitState_Sad:
-					hit_effect_index = 4;
-					break;
-				case HitState_WrongCool:
-				case HitState_WrongFine:
-				case HitState_WrongSafe:
-				case HitState_WrongSad:
-					hit_effect_index = 0;
-					break;
-				}
-
-				if (hit_effect_index != -1)
-					game->PlayHitEffect(hit_effect_index, tgt->target_pos);
-
-				// NOTE: Play note SE
-				//
-				if (nc::IsHitCorrect(hit_state))
-				{
-					switch (ex->target_type)
-					{
-					case TargetType_TriangleRush:
-					case TargetType_CircleRush:
-					case TargetType_CrossRush:
-					case TargetType_SquareRush:
-						se_mgr.PlayButtonSE();
-						break;
-					case TargetType_UpW:
-					case TargetType_RightW:
-					case TargetType_DownW:
-					case TargetType_LeftW:
-						se_mgr.PlayDoubleSE();
-						se_mgr.ClearSchedules();
-						break;
-					case TargetType_TriangleLong:
-					case TargetType_CircleLong:
-					case TargetType_CrossLong:
-					case TargetType_SquareLong:
-						if (ex->IsLongNoteStart())
-							se_mgr.StartLongSE();
-						else
-							se_mgr.EndLongSE(false);
-						break;
-					case TargetType_LinkStar:
-						if (ex->IsLinkNoteStart()) { se_mgr.StartLinkSE(); }
-						[[fallthrough]];
-					case TargetType_Star:
-					case TargetType_StarRush:
-					case TargetType_LinkStarEnd:
-						se_mgr.PlayStarSE();
-						game->mute_slide_chime = true;
-						break;
-					case TargetType_ChanceStar:
-						if (state.chance_time.GetFillRate() == 15)
-							se_mgr.PlayCymbalSE();
-						else
-							se_mgr.PlayStarSE();
-						game->mute_slide_chime = true;
-						break;
-					case TargetType_StarW:
-						se_mgr.PlayStarDoubleSE();
-						se_mgr.ClearSchedules();
-						game->mute_slide_chime = true;
-						break;
-					}
-
-					*play_default_se = false;
-				}
-				else if (nc::IsHitWrong(hit_state))
-				{
-					*play_default_se = true;
-					se_mgr.ClearSchedules();
-				}
-				else if (ex->IsLongNoteEnd())
-				{
-					se_mgr.EndLongSE(true);
-					GetPVGameData()->ui.RemoveBonusText();
-				}
-
-				if (ex->IsLinkNoteEnd())
-					se_mgr.EndLinkSE();
-			}
-		}
-	}
-	
 	// NOTE: Calculate bonus score and play hit effect
-	if (nc::IsHitCorrect(final_hit_state))
+	if (final_hit_state != HitState_None && game_state.group.size() > 0)
 	{
-		for (int i = 0; i < group_count; i++)
+		int32_t total_disp_score = 0;
+		diva::vec2 calc_target_pos = {};
+
+		if (nc::IsHitCorrect(final_hit_state))
 		{
-			TargetStateEx* ex = GetTargetStateEx(group[i]);
-			ex->hit_state = group[i]->hit_state;
-
-			int32_t disp_score = 0;
-			GetPVGameData()->score += score::CalculateHitScoreBonus(ex, &disp_score);
-			GetPVGameData()->ui.SetBonusText(disp_score, ex->target_pos);
-
-			if (ex->IsLongNoteEnd())
-				state.score.sustain_bonus += ex->prev->score_bonus;
-
-			if (ex->target_hit_effect_id >= 0)
+			if (state.chance_time.CheckTargetInRange(game_state.group[0]->target_index))
 			{
-				std::string effect_name = 
-					GetPVGameData()->is_success_branch
-					? state.success_target_effect_map[ex->target_hit_effect_id]
-					: state.fail_target_effect_map[ex->target_hit_effect_id];
+				int32_t bonus = score::GetChanceTimeScoreBonus(nc::GetHitStateBase(final_hit_state));
+				GetPVGameData()->score += bonus;
+				state.score.ct_score_bonus += bonus;
+				total_disp_score += bonus;
+			}
+		}
 
-				if (!effect_name.empty())
+		for (PvGameTarget* target : game_state.group)
+		{
+			TargetStateEx* ex = GetTargetStateEx(target);
+			ex->hit_state = target->hit_state;
+
+			if (nc::IsHitCorrect(ex->hit_state))
+			{
+				int32_t disp_score = 0;
+				GetPVGameData()->score += score::CalculateHitScoreBonus(ex, &disp_score);
+
+				total_disp_score += disp_score;
+				calc_target_pos = calc_target_pos + target->target_pos;
+
+				if (ex->IsLongNoteEnd())
+					state.score.sustain_bonus += ex->prev->score_bonus;
+
+				if (ex->target_hit_effect_id >= 0)
 				{
-					std::shared_ptr<AetElement> eff = state.ui.PushHitEffect();
-					if (eff)
+					std::string effect_name =
+						GetPVGameData()->is_success_branch
+						? state.success_target_effect_map[ex->target_hit_effect_id]
+						: state.fail_target_effect_map[ex->target_hit_effect_id];
+
+					if (!effect_name.empty())
 					{
-						eff->SetLayer(effect_name, 0x20000, 7, 13, "", "", nullptr);
-						eff->SetPosition(diva::vec3(GetScaledPosition(ex->target_pos), 0.0f));
+						std::shared_ptr<AetElement> eff = state.ui.PushHitEffect();
+						if (eff)
+						{
+							eff->SetLayer(effect_name, 0x20000, 7, 13, "", "", nullptr);
+							eff->SetPosition(diva::vec3(GetScaledPosition(ex->target_pos), 0.0f));
+						}
 					}
 				}
 			}
+
+			PlayNoteSoundEffectOnHit(target, ex);
+			CheckContinuousNoteSoundEffects(target, ex);
 		}
+
+		game->mute_slide_chime = game_state.mute_slide_chime;
+		GetPVGameData()->ui.SetBonusText(total_disp_score, calc_target_pos / game_state.group.size());
 	}
 
 	// NOTE: Update chance time
@@ -397,6 +274,28 @@ HOOK(int32_t, __fastcall, GetHitState, 0x14026BF60,
 			tz.PushNewHitState(*target_index, final_hit_state);
 	}
 
+	// NOTE: Check sound priority
+	int32_t snd_prio = nc::GetSharedData().sound_prio;
+	if (snd_prio == 2 && game_state.group.size() > 0)
+	{
+		for (PvGameTarget* target : game_state.group)
+		{
+			if (target->flying_time_remaining >= game->sad_late_window &&
+				target->flying_time_remaining <= game->sad_early_window)
+			{
+				if (target->target_type >= TargetType_UpW && target->target_type <= TargetType_LeftW)
+					*play_default_se = false;
+				else if (target->target_type == TargetType_StarW)
+				{
+					should_play_star_se = false;
+					game->mute_slide_chime = true;
+				}
+			}
+		}
+	}
+
+	// NOTE: Play default star sound when no notes are currently being polled.
+	//       (Only in CONSOLE and MIXED modes)
 	if (should_play_star_se && *play_default_se && nc::GetSharedData().stick_control_se == 1 && state.GetGameStyle() != GameStyle_Arcade)
 	{
 		if (macro_state.GetStarHit())
@@ -412,6 +311,82 @@ HOOK(int32_t, __fastcall, GetHitState, 0x14026BF60,
 
 	return final_hit_state;
 }
+
+MIDASM_HOOK(GetHitStatePlaySE, 0x14026C7E7)
+{
+	int32_t hit_type = *reinterpret_cast<int32_t*>(&ctx.rsi);
+	int32_t target_type = *reinterpret_cast<int32_t*>(&ctx.rax) + 14;
+
+	// NOTE: Check if this is an NC note and nullify the name so that
+	//       no sound plays. For some reason setting xmm2 (volume) to
+	//       0.0 makes the next sound also play silently.
+	if (hit_type >= 0 && target_type >= TargetType_Custom && target_type <= TargetType_Max)
+		*reinterpret_cast<const char**>(&ctx.rdx) = "";
+}
+
+static bool PlayNoteSoundEffectOnHit(PvGameTarget* target, TargetStateEx* ex)
+{
+	if (ex->hit_state == HitState_Worst || ex->hit_state == HitState_None)
+		return false;
+
+	if (nc::IsHitCorrect(ex->hit_state))
+	{
+		if (ex->IsNormalDoubleNote())
+		{
+			se_mgr.PlayDoubleSE();
+			return true;
+		}
+		else if (ex->target_type == TargetType_StarW)
+		{
+			se_mgr.PlayStarDoubleSE();
+			game_state.mute_slide_chime = true;
+			return true;
+		}
+		else if (ex->IsRushNote())
+		{
+			if (!ex->IsStarLikeNote())
+				se_mgr.PlayButtonSE();
+			se_mgr.StartRushBackSE();
+		}
+		else if (ex->IsLinkNoteStart())
+			se_mgr.StartLinkSE();
+		else if (ex->IsLongNoteStart())
+			se_mgr.StartLongSE();
+
+		if (ex->IsStarLikeNote())
+		{
+			if (ex->target_type == TargetType_ChanceStar && state.chance_time.GetFillRate() == 15)
+				se_mgr.PlayCymbalSE();
+			else
+				se_mgr.PlayStarSE();
+
+			game_state.mute_slide_chime = true;
+		}
+	}
+	else if (nc::IsHitWrong(ex->hit_state))
+	{
+		if (ex->IsNormalDoubleNote() || ex->IsRushNote() && !ex->IsStarLikeNote())
+			se_mgr.PlayButtonSE();
+	}
+
+	return true;
+}
+
+static bool CheckContinuousNoteSoundEffects(PvGameTarget* target, TargetStateEx* ex)
+{
+	if (ex->hit_state == HitState_None)
+		return false;
+
+	if (ex->IsLinkNoteEnd())
+		se_mgr.EndLinkSE();
+	else if (ex->IsLongNoteEnd())
+		se_mgr.EndLongSE(!nc::IsHitCorrect(ex->hit_state));
+	else if (ex->IsRushNote() && ex->length_remaining <= 0.0f)
+		se_mgr.EndRushBackSE(ex->bal_hit_count >= ex->bal_max_hit_count);
+
+	return true;
+}
+
 
 HOOK(void, __fastcall, CalculatePercentage, 0x140246130, PVGameData* pv_game)
 {
@@ -454,11 +429,8 @@ HOOK(void, __fastcall, ExecuteModeSelect, 0x1503B04A0, PVGamePvData* pv_data, in
 			SetChanceTimeMode(&pv_data->pv_game->ui, ModeSelect_ChanceStart);
 			break;
 		case ModeSelect_ChanceEnd:
-			if (state.chance_time.successful)
-			{
-				if (state.GetScoreMode() != ScoreMode_Arcade)
-					pv_data->pv_game->score += score::GetChanceTimeSuccessBonus();
-			}
+			if (state.chance_time.successful && state.GetGameStyle() == GameStyle_Console)
+				pv_data->pv_game->score += score::GetChanceTimeSuccessBonus();
 
 			SetChanceTimeMode(&pv_data->pv_game->ui, ModeSelect_ChanceEnd);
 			break;
@@ -475,11 +447,8 @@ HOOK(void, __fastcall, ExecuteModeSelect, 0x1503B04A0, PVGamePvData* pv_data, in
 			{
 				if (TechZoneState& tz = state.tech_zones[state.tech_zone_index]; tz.IsValid())
 				{
-					if (tz.IsSuccessful())
-					{
-						if (state.GetScoreMode() != ScoreMode_Arcade)
-							pv_data->pv_game->score += score::GetTechZoneSuccessBonus();
-					}
+					if (tz.IsSuccessful() && state.GetGameStyle() != GameStyle_Arcade)
+						pv_data->pv_game->score += score::GetTechZoneSuccessBonus();
 				}
 				
 				state.tz_disp.end = true;
@@ -504,11 +473,13 @@ HOOK(void, __fastcall, UpdateGaugeFrame, 0x14027A490, PVGameUI* ui)
 
 void InstallGameHooks()
 {
+	INSTALL_HOOK(GetHitStateInternal);
 	INSTALL_HOOK(GetHitState);
 	INSTALL_HOOK(UpdateLife);
 	INSTALL_HOOK(ExecuteModeSelect);
 	INSTALL_HOOK(UpdateGaugeFrame);
 	INSTALL_HOOK(CalculatePercentage);
+	INSTALL_MIDASM_HOOK(GetHitStatePlaySE);
 
 	// NOTE: Replace the branches in FinishTargetAet with a simple JMP so that the game properly
 	//       removes the target aets from the screen even if the target or button aet handles are 0,

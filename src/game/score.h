@@ -25,6 +25,7 @@ namespace score
 	constexpr int32_t GetChanceTimeSuccessBonus() { return 50000; }
 	constexpr int32_t GetTechZoneSuccessBonus() { return 5000; }
 
+	int32_t GetChanceTimeScoreBonus(int32_t hit_state);
 	float GetTechZoneRetainedRate();
 	int32_t CalculateHitScoreBonus(TargetStateEx* target, int32_t* disp);
 	int32_t CalculateSustainBonus(TargetStateEx* target);
