@@ -27,6 +27,13 @@ constexpr float ChanceTimePercBonus  = 0.01; // 1%
 constexpr float DoubleTapPercBonus   = 0.02; // 2%
 constexpr float SustainHoldPercBonus = 0.01; // 1%
 
+int32_t score::GetChanceTimeScoreBonus(int32_t hit_state)
+{
+	if (hit_state < HitState_Cool || hit_state > HitState_Sad)
+		return 0;
+	return ChanceTimeScoreBonus[hit_state];
+}
+
 float score::GetTechZoneRetainedRate()
 {
 	return TechZoneRetainedRate;
@@ -42,12 +49,6 @@ int32_t score::CalculateHitScoreBonus(TargetStateEx* target, int32_t* disp)
 	{
 		bonus += DoubleTapScoreBonus;
 		state.score.double_tap_bonus += DoubleTapScoreBonus;
-	}
-
-	if (state.chance_time.CheckTargetInRange(target->target_index))
-	{
-		ct_bonus = ChanceTimeScoreBonus[target->hit_state];
-		bonus_disp += ct_bonus;
 	}
 
 	if (target->IsLinkNote())

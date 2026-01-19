@@ -37,6 +37,35 @@ namespace nc
 		return IsHitWrong(hit) || hit == HitState_Worst;
 	}
 
+	inline int32_t GetHitStateBase(int32_t hit_state)
+	{
+		switch (hit_state)
+		{
+		case HitState_Cool:
+		case HitState_CoolDouble:
+		case HitState_CoolTriple:
+		case HitState_CoolQuad:
+			return HitState_Cool;
+		case HitState_Fine:
+		case HitState_FineDouble:
+		case HitState_FineTriple:
+		case HitState_FineQuad:
+			return HitState_Fine;
+		case HitState_Safe:
+		case HitState_SafeDouble:
+		case HitState_SafeTriple:
+		case HitState_SafeQuad:
+			return HitState_Safe;
+		case HitState_Sad:
+		case HitState_SadDouble:
+		case HitState_SadTriple:
+		case HitState_SadQuad:
+			return HitState_Sad;
+		}
+
+		return hit_state;
+	}
+
 	int32_t JudgeNoteHit(PVGameArcade* game, PvGameTarget** group, TargetStateEx** extras, int32_t group_count, bool* success);
 	bool CheckLongNoteHolding(TargetStateEx* ex);
 	bool CheckRushNotePops(TargetStateEx* ex);
