@@ -330,55 +330,7 @@ HOOK(int32_t, __fastcall, ParseTargets, 0x140245C50, PVGameData* pv_game)
 			state.tech_zones.push_back(tz);
 	}
 
-	// NOTE: Patch score reference (Only in Arcade mode; We don't need to patch this in F2nd mode as
-	//                              we use our own percentage calculation algorithm)
-	if (state.GetScoreMode() == ScoreMode_Arcade)
-	{
-		int32_t life = 127;
-		int32_t total_chance_bonus = 0;
-		int32_t total_hold_bonus = 0;
-		int32_t total_link_bonus = 0;
-
-		for (size_t i = 0; i < pv_game->pv_data.targets.size(); i++)
-		{
-			for (int j = 0; j < pv_game->pv_data.targets[i].target_count; j++)
-			{
-				PvDscTarget& tgt = pv_game->pv_data.targets[i].targets[j];
-				TargetStateEx* ex = GetTargetStateEx(i, j);
-
-				if (ex->IsLinkNote())
-					total_link_bonus += 200;
-
-				if (state.chance_time.CheckTargetInRange(i))
-				{
-					total_chance_bonus += 1000;
-
-					// NOTE: The game will apply life bonus to notes in chance time because
-					//       it isn't aware of chance times, so we need to deduct those too.
-					if (life == 255)
-						pv_game->reference_score_with_life -= 10;
-				}
-
-				pv_game->target_reference_scores[i + 1] += total_chance_bonus + total_link_bonus;
-			}
-
-			if (!state.chance_time.CheckTargetInRange(i))
-			{
-				life += life_table[21 * GetPvGameplayInfo()->difficulty];
-				if (life > 255)
-					life = 255;
-			}
-		}
-
-		pv_game->reference_score += total_chance_bonus + total_hold_bonus + total_link_bonus;
-		pv_game->reference_score_with_life += total_chance_bonus + total_hold_bonus + total_link_bonus;
-	}
-	else
-	{
-		// NOTE: Calculate percentage parameters for F2nd/Franken score mode
-		score::CalculateScoreReference(&state.score, pv_game);
-	}
-
+	score::CalculateScoreReference(state.GetGameStyle(), &state.score, pv_game);
 	return pv_game->reference_score;
 }
 

@@ -31,5 +31,5 @@ namespace score
 	int32_t CalculateMaxSustainBonus(TargetStateEx* target);
 	int32_t IncreaseRushPopCount(TargetStateEx* target);
 	float CalculatePercentage(PVGameData* pv_game);
-	void CalculateScoreReference(ScoreState* ref, PVGameData* pv_game);
+	void CalculateScoreReference(int32_t style, ScoreState* ref, PVGameData* pv_game);
 }
