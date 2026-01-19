@@ -34,8 +34,16 @@ const HMODULE MODULE_HANDLE = GetModuleHandle(nullptr);
     static auto original##functionName = [](auto&&... args){ return g_##functionName##_hook.call<returnType>(std::forward<decltype(args)>(args)...); }; \
     returnType callingConvention implOf##functionName(__VA_ARGS__)
 
+#define MIDASM_HOOK(functionName, location) \
+    static SafetyHookMid g_##functionName##_hook {}; \
+    static void* g_##functionName##_addr = reinterpret_cast<void*>(location); \
+    static void implOf##functionName(safetyhook::Context& ctx)
+
 #define INSTALL_HOOK(functionName) \
     do { g_##functionName##_hook = safetyhook::create_inline(g_##functionName##_addr, implOf##functionName); } while (0)
+
+#define INSTALL_MIDASM_HOOK(functionName) \
+    do { g_##functionName##_hook = safetyhook::create_mid(g_##functionName##_addr, implOf##functionName); } while (0)
 
 #define WRITE_MEMORY(location, type, ...) \
     do { \
