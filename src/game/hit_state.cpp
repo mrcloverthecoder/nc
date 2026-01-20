@@ -1,3 +1,4 @@
+#include <tuple>
 #include <hooks.h>
 #include <nc_state.h>
 #include <nc_log.h>
@@ -30,6 +31,74 @@ namespace nc
 		return HitState_None;
 	}
 
+	static int32_t GetTargetBaseType(int32_t target_type)
+	{
+		switch (target_type)
+		{
+		case TargetType_Triangle:
+		case TargetType_TriangleLong:
+		case TargetType_TriangleRush:
+		case TargetType_UpW:
+			return TargetType_Triangle;
+		case TargetType_Circle:
+		case TargetType_CircleLong:
+		case TargetType_CircleRush:
+		case TargetType_RightW:
+			return TargetType_Circle;
+		case TargetType_Cross:
+		case TargetType_CrossLong:
+		case TargetType_CrossRush:
+		case TargetType_DownW:
+			return TargetType_Cross;
+		case TargetType_Square:
+		case TargetType_SquareLong:
+		case TargetType_SquareRush:
+		case TargetType_LeftW:
+			return TargetType_Square;
+		case TargetType_Star:
+		case TargetType_StarLong:
+		case TargetType_StarRush:
+		case TargetType_StarW:
+		case TargetType_ChanceStar:
+		case TargetType_LinkStar:
+		case TargetType_LinkStarEnd:
+			return TargetType_Star;
+		}
+
+		return TargetType_Max;
+	}
+
+	static uint64_t GetButtonMaskWithArrows(int32_t target_type)
+	{
+		switch (GetTargetBaseType(target_type))
+		{
+		case TargetType_Triangle:
+			return (GetButtonMask(Button_Triangle) | GetButtonMask(Button_Up));
+		case TargetType_Circle:
+			return (GetButtonMask(Button_Circle) | GetButtonMask(Button_Right));
+		case TargetType_Cross:
+			return (GetButtonMask(Button_Cross) | GetButtonMask(Button_Down));
+		case TargetType_Square:
+			return (GetButtonMask(Button_Square) | GetButtonMask(Button_Left));
+		}
+		
+		return 0;
+	}
+
+	static std::tuple<uint64_t, uint64_t> GetButtonBitmasksAccountedForMultis(PvGameTarget* target)
+	{
+		uint64_t button_mask = GetButtonMaskWithArrows(target->target_type);
+		uint64_t wrong_mask = GetButtonMask(Button_Max) & ~button_mask;
+
+		for (PvGameTarget* next = target->next; next && next->multi_count == target->multi_count; next = next->next)
+			wrong_mask &= ~GetButtonMaskWithArrows(next->target_type);
+
+		for (PvGameTarget* prev = target->prev; prev && prev->multi_count == target->multi_count; prev = prev->prev)
+			wrong_mask &= ~GetButtonMaskWithArrows(prev->target_type);
+
+		return std::make_tuple(button_mask, wrong_mask);
+	}
+
 	static int32_t GetHitStateInternal(PVGameArcade* data, PvGameTarget* target, TargetStateEx* ex, ButtonState** hold_button, bool* double_tapped, bool* no_success)
 	{
 		if (ex->force_hit_state != HitState_None)
@@ -40,36 +109,7 @@ namespace nc
 
 		bool hit = false;
 		bool wrong = false;
-
-		uint64_t button_mask = 0;
-		uint64_t wrong_mask = 0;
-		switch (target->target_type)
-		{
-		case TargetType_UpW:
-		case TargetType_TriangleLong:
-		case TargetType_TriangleRush:
-			button_mask = GetButtonMask(Button_Triangle) | GetButtonMask(Button_Up);
-			wrong_mask = ~button_mask & GetButtonMask(Button_Max);
-			break;
-		case TargetType_RightW:
-		case TargetType_CircleLong:
-		case TargetType_CircleRush:
-			button_mask = GetButtonMask(Button_Circle) | GetButtonMask(Button_Right);
-			wrong_mask = ~button_mask & GetButtonMask(Button_Max);
-			break;
-		case TargetType_DownW:
-		case TargetType_CrossLong:
-		case TargetType_CrossRush:
-			button_mask = GetButtonMask(Button_Cross) | GetButtonMask(Button_Down);
-			wrong_mask = ~button_mask & GetButtonMask(Button_Max);
-			break;
-		case TargetType_LeftW:
-		case TargetType_SquareLong:
-		case TargetType_SquareRush:
-			button_mask = GetButtonMask(Button_Square) | GetButtonMask(Button_Left);
-			wrong_mask = ~button_mask & GetButtonMask(Button_Max);
-			break;
-		}
+		auto [button_mask, wrong_mask] = GetButtonBitmasksAccountedForMultis(target);
 
 		// NOTE: Check input for double notes
 		if (target->target_type >= TargetType_UpW && target->target_type <= TargetType_LeftW)
