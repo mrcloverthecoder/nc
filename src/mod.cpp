@@ -132,6 +132,9 @@ HOOK(int32_t, __fastcall, ParseTargets, 0x140245C50, PVGameData* pv_game)
 	int32_t index = 0;
 	for (PvDscTargetGroup& group : pv_game->pv_data.targets)
 	{
+		auto shared_data = std::make_shared<TargetStateExShared>();
+		shared_data->Reset();
+
 		for (int i = 0; i < group.target_count; i++)
 		{
 			// NOTE: Patch existing extra data with new information
@@ -139,6 +142,7 @@ HOOK(int32_t, __fastcall, ParseTargets, 0x140245C50, PVGameData* pv_game)
 			if (TargetStateEx* ex = GetTargetStateEx(index, i); ex != nullptr)
 			{
 				ex->target_type = group.targets[i].type;
+				ex->shared_data = shared_data;
 				continue;
 			}
 
@@ -148,6 +152,7 @@ HOOK(int32_t, __fastcall, ParseTargets, 0x140245C50, PVGameData* pv_game)
 			ex.target_index = index;
 			ex.sub_index = i;
 			ex.target_type = group.targets[i].type;
+			ex.shared_data = shared_data;
 			ex.ResetPlayState();
 			state.target_ex.push_back(ex);
 		}

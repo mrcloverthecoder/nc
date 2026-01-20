@@ -59,7 +59,7 @@ HOOK(int32_t, __fastcall, GetHitStateInternal, 0x14026D2E0,
 			{
 				state.PopTarget(ex);
 				ex->StopAet();
-				ex->next->force_hit_state = ex->hit_state;
+				ex->next->shared_data->force_hit_state = ex->hit_state;
 			}
 			else
 				ex->SetLongNoteAet();
@@ -142,7 +142,7 @@ HOOK(int32_t, __fastcall, GetHitState, 0x14026BF60,
 				//       automatically mark it as a fail.
 				if (!nc::CheckLongNoteHolding(tgt) && !is_in_zone)
 				{
-					tgt->next->force_hit_state = HitState_Worst;
+					tgt->next->shared_data->force_hit_state = HitState_Worst;
 					tgt->StopAet();
 					tgt->holding = false;
 					it = state.target_references.erase(it);

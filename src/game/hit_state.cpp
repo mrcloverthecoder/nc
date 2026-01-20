@@ -101,8 +101,8 @@ namespace nc
 
 	static int32_t GetHitStateInternal(PVGameArcade* data, PvGameTarget* target, TargetStateEx* ex, ButtonState** hold_button, bool* double_tapped, bool* no_success)
 	{
-		if (ex->force_hit_state != HitState_None)
-			return ex->force_hit_state;
+		if (ex->shared_data->force_hit_state != HitState_None)
+			return ex->shared_data->force_hit_state;
 
 		if (target->flying_time_remaining < -NormalWindow[HitState_Sad])
 			return HitState_Worst;
@@ -213,7 +213,7 @@ int32_t nc::JudgeNoteHit(PVGameArcade* game, PvGameTarget** group, TargetStateEx
 					ex->holding = true;
 					ex->fix_long_kiseki = true;
 					ex->kiseki_pos = ex->target_pos;
-					ex->next->force_hit_state = HitState_None;
+					ex->next->shared_data->force_hit_state = HitState_None;
 				}
 				else if (ex->IsRushNote())
 					ex->holding = true;

@@ -99,6 +99,14 @@ enum SEType : int32_t
 	SEType_Max         = 14
 };
 
+// NOTE: Properties that should be shared between targets in a multi
+struct TargetStateExShared
+{
+	int32_t force_hit_state = HitState_None;
+
+	void Reset();
+};
+
 struct TargetStateEx
 {
 	// NOTE: Static data; Information about the target.
@@ -117,7 +125,7 @@ struct TargetStateEx
 	// NOTE: Gameplay state
 	ButtonState* hold_button = nullptr;
 	PvGameTarget* org = nullptr;
-	int32_t force_hit_state = HitState_None;
+	std::shared_ptr<TargetStateExShared> shared_data;
 	int32_t hit_state = HitState_None;
 	float hit_time = 0.0f;
 	float flying_time_max = 0.0f;

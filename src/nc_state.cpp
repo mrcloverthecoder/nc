@@ -8,7 +8,8 @@ void TargetStateEx::ResetPlayState()
 {
 	hold_button = nullptr;
 	org = nullptr;
-	force_hit_state = HitState_None;
+	if (shared_data)
+		shared_data->Reset();
 	hit_state = HitState_None;
 	hit_time = 0.0f;
 	flying_time_max = 0.0f;
@@ -36,6 +37,11 @@ void TargetStateEx::ResetPlayState()
 	bal_hit_count = 0;
 	bal_scale = 0.0f;
 	ResetAetData();
+}
+
+void TargetStateExShared::Reset()
+{
+	force_hit_state = HitState_None;
 }
 
 void TargetStateEx::ResetAetData()
