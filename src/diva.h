@@ -5,6 +5,7 @@
 #include <vector>
 #include <map>
 #include <memory>
+#include <list>
 #include <stdint.h>
 #include "hooks.h"
 
@@ -90,8 +91,11 @@ namespace prj
 	template <typename _K, typename _V>
 	using map = std::map<_K, _V, std::less<_K>, Allocator<std::pair<const _K, _V>>>;
 
-	template<typename T>
+	template <typename T>
 	using unique_ptr = std::unique_ptr<T, default_delete<T>>;
+
+	template <typename T>
+	using list = std::list<T, Allocator<T>>;
 }
 
 enum HitState : int32_t

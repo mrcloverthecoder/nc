@@ -234,6 +234,28 @@ HOOK(bool, __fastcall, TaskPvDBCtrl, 0x1404BB290, uint64_t a1)
 	return ret;
 }
 
+static FUNCTION_PTR(void*, __fastcall, GetMdataManager, 0x14043E040);
+static FUNCTION_PTR(prj::list<prj::string>*, __fastcall, MdataManager_GetDBPrefixes, 0x14043F8A0, void* a1);
+
+HOOK(void, __fastcall, InitMdataPvDbPaths, 0x1404BBE80)
+{
+	originalInitMdataPvDbPaths();
+	prj::list<prj::string>& paths = *reinterpret_cast<prj::list<prj::string>*>(0x141753780 + 0x70);
+	prj::list<prj::string>& prefixes = *MdataManager_GetDBPrefixes(GetMdataManager());
+
+	for (const prj::string& prefix : prefixes)
+	{
+		prj::string pv_db_path = "rom/" + prefix + "nc_pv_db.txt";
+		prj::string pv_field_path = "rom/" + prefix + "nc_pv_field.txt";
+
+		if (FileCheckExists(&pv_db_path, nullptr))
+			paths.push_back(pv_db_path);
+
+		if (FileCheckExists(&pv_field_path, nullptr))
+			paths.push_back(pv_field_path);
+	}
+}
+
 db::ChartEntry& db::DifficultyEntry::FindOrCreateChart(int32_t style)
 {
 	for (ChartEntry& chart : charts)
@@ -316,4 +338,5 @@ void InstallDatabaseHooks()
 {
 	INSTALL_HOOK(TaskPvDBParseEntry);
 	INSTALL_HOOK(TaskPvDBCtrl);
+	INSTALL_HOOK(InitMdataPvDbPaths);
 }
