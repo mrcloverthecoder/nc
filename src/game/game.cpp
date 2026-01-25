@@ -251,7 +251,7 @@ HOOK(int32_t, __fastcall, GetHitState, 0x14026BF60,
 			CheckContinuousNoteSoundEffects(target, ex);
 		}
 
-		game->mute_slide_chime = game_state.mute_slide_chime;
+		game->mute_slide_chime |= game_state.mute_slide_chime;
 		GetPVGameData()->ui.SetBonusText(total_disp_score, calc_target_pos / game_state.group.size());
 	}
 
