@@ -110,6 +110,7 @@ HOOK(void, __fastcall, CAetControllerGetLayout, 0x14065E200, CAetController* a1,
 
 HOOK(bool, __fastcall, StageResultSwitchInit, 0x14064C0E0, void* a1)
 {
+	state.ui.ResetAllLayers();
 	prj::string out;
 	prj::string_view strv;
 	aet::LoadAetSet(results::AetSetID, &out);

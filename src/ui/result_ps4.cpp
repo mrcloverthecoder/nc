@@ -61,6 +61,25 @@ static std::string GetLocalizedLayerNameOnlyJP(std::string_view name)
 	return std::string(name) + (GetGameLocale() == GameLocale_JP ? "_jp" : "_en");
 }
 
+
+static void PatchWinAlmost(StageResultPS4* result, const char* name, int32_t flags = 0x20000)
+{
+	if (result->win_almost > 0 && nc::ShouldUseConsoleStyleWin())
+	{
+		aet::Stop(&result->win_almost);
+		result->win_almost = aet::PlayLayer(
+			1279,
+			3,
+			flags,
+			name,
+			nullptr,
+			nullptr,
+			nullptr
+		);
+	}
+}
+
+
 class StyleBelt : AetElement
 {
 private:
@@ -102,30 +121,36 @@ HOOK(void, __fastcall, PutScoreWindowIn, 0x1402365C0, StageResultPS4* result)
 {
 	originalPutScoreWindowIn(result);
 	SetWindowAet(result, GetLocalizedLayerNameOnlyJP("ps4_win_nc_in"));
+	PatchWinAlmost(result, "win_almost_in");
 }
 
 HOOK(void, __fastcall, PutWinCount, 0x1402367C0, StageResultPS4* result)
 {
 	originalPutWinCount(result);
 	SetWindowAet(result, GetLocalizedLayerNameOnlyJP("ps4_win_nc_count"));
+	PatchWinAlmost(result, "win_almost_count");
 }
+
 
 HOOK(void, __fastcall, PutWinLoop, 0x140236A30, StageResultPS4* result)
 {
 	originalPutWinLoop(result);
 	SetWindowAet(result, GetLocalizedLayerNameOnlyJP("ps4_win_nc_loop"), true);
+	PatchWinAlmost(result, "win_almost_loop", 0x10000);
 }
+
 
 HOOK(void, __fastcall, PutWinOut, 0x140236C80, StageResultPS4* result)
 {
 	originalPutWinOut(result);
 	SetWindowAet(result, GetLocalizedLayerNameOnlyJP("ps4_win_nc_out"));
+	PatchWinAlmost(result, "win_almost_out");
 }
 
 HOOK(bool, __fastcall, StageResultPS4Init, 0x140231A70, StageResultPS4* result)
 {
 	bool ret = originalStageResultPS4Init(result);
-
+	state.ui.ResetAllLayers();
 	prj::string str;
 	prj::string_view strv;
 	aet::LoadAetSet(results::AetSetID, &str);
