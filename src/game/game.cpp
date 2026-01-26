@@ -479,4 +479,9 @@ void InstallGameHooks()
 	//       which normally would make the target effects aet stay on screen when retrying a song while
 	//       a link note is spawning (as we capture their aet handles)
 	WRITE_MEMORY(0x14026E649, uint8_t, 0xE9, 0x7, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0);
+
+	// NOTE: Increase the height of chance_frame_bottom to hide the star tip
+	uint32_t ChanceFrmBtmHeight = 0x43150000;
+	WRITE_MEMORY(0x140274E47, uint32_t, ChanceFrmBtmHeight);
+	WRITE_MEMORY(0x140274E5B, uint32_t, ChanceFrmBtmHeight);
 }
