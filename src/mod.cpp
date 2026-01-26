@@ -30,6 +30,13 @@ HOOK(bool, __fastcall, TaskPvGameInit, 0x1405DA040, uint64_t a1)
 	state.files_loaded = false;
 	state.dsc_loaded = false;
 	state.file_state = 0;
+	
+	int32_t pv_id = game::GetPVLoadParam()->data[game::GetPVLoadParam()->data[0].int8].pv_id;
+	if (pv_id == 700)
+	{
+		state.nc_song_entry.reset();
+		state.nc_chart_entry.reset();
+	}
 
 	prj::string str;
 	prj::string_view strv;
