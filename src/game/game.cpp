@@ -30,6 +30,31 @@ struct NCSharedGameState
 static bool PlayNoteSoundEffectOnHit(PvGameTarget* target, TargetStateEx* ex);
 static bool CheckContinuousNoteSoundEffects(PvGameTarget* target, TargetStateEx* ex);
 
+
+float ChallengeTimeHeight = 0.0f;
+constexpr float ChanceTimeHeight = 149.0f;
+constexpr uintptr_t FrmBtmHeightAddrs[] = { 0x140274E47, 0x140274E5B };
+
+void PatchFrmBtmHeight(float height) 
+{
+	uint32_t bits;
+	std::memcpy(&bits, &height, sizeof(float));
+
+	for (uintptr_t addr : FrmBtmHeightAddrs)
+		WRITE_MEMORY(addr, uint32_t, bits);
+}
+
+void SaveAndPatchCTHeight()
+{
+	float currentBtm = *reinterpret_cast<float*>(FrmBtmHeightAddrs[0]);
+
+	if (currentBtm != ChanceTimeHeight)
+		ChallengeTimeHeight = currentBtm;
+
+	PatchFrmBtmHeight(ChanceTimeHeight);
+}
+
+
 HOOK(int32_t, __fastcall, GetHitStateInternal, 0x14026D2E0,
 	PVGameArcade* game,
 	PvGameTarget* target,
@@ -418,7 +443,11 @@ HOOK(void, __fastcall, ExecuteModeSelect, 0x1503B04A0, PVGamePvData* pv_data, in
 	{
 		switch (mode)
 		{
+		case ModeSelect_ChallengeStart:
+			PatchFrmBtmHeight(ChallengeTimeHeight);
+			break;
 		case ModeSelect_ChanceStart:
+			SaveAndPatchCTHeight();
 			SetChanceTimeMode(&pv_data->pv_game->ui, ModeSelect_ChanceStart);
 			break;
 		case ModeSelect_ChanceEnd:
@@ -479,9 +508,4 @@ void InstallGameHooks()
 	//       which normally would make the target effects aet stay on screen when retrying a song while
 	//       a link note is spawning (as we capture their aet handles)
 	WRITE_MEMORY(0x14026E649, uint8_t, 0xE9, 0x7, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0);
-
-	// NOTE: Increase the height of chance_frame_bottom to hide the star tip
-	uint32_t ChanceFrmBtmHeight = 0x43150000;
-	WRITE_MEMORY(0x140274E47, uint32_t, ChanceFrmBtmHeight);
-	WRITE_MEMORY(0x140274E5B, uint32_t, ChanceFrmBtmHeight);
 }
