@@ -508,4 +508,6 @@ void InstallGameHooks()
 	//       which normally would make the target effects aet stay on screen when retrying a song while
 	//       a link note is spawning (as we capture their aet handles)
 	WRITE_MEMORY(0x14026E649, uint8_t, 0xE9, 0x7, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0);
+	
+	ChallengeTimeHeight = *reinterpret_cast<float*>(FrmBtmHeightAddrs[0]);
 }
