@@ -7,6 +7,7 @@
 #include "chance_time.h"
 #include "hit_state.h"
 #include "score.h"
+#include "sound_effects.h"
 
 struct NCSharedGameState
 {

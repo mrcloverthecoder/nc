@@ -8,7 +8,6 @@
 #include "db.h"
 #include "game/score.h"
 #include "game/tech_zone.h"
-#include "game/sound_effects.h"
 #include "ui/common.h"
 
 constexpr float ChanceTimeRetainedRate = 0.05; // 5%
@@ -347,7 +346,6 @@ constexpr float KisekiInterval = 1.0f / KisekiRate;
 // NOTE: Global state
 inline MacroState macro_state = { };
 inline StateEx state = { };
-inline SoundEffectManager se_mgr = { };
 
 // NOTE: Helper functions
 TargetStateEx* GetTargetStateEx(int32_t index, int32_t sub_index);
