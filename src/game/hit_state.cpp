@@ -90,6 +90,9 @@ namespace nc
 		uint64_t button_mask = GetButtonMaskWithArrows(target->target_type);
 		uint64_t wrong_mask = GetButtonMask(Button_Max) & ~button_mask;
 
+		if (target->multi_count < 0)
+			return std::make_tuple(button_mask, wrong_mask);
+
 		for (PvGameTarget* next = target->next; next && next->multi_count == target->multi_count; next = next->next)
 			wrong_mask &= ~GetButtonMaskWithArrows(next->target_type);
 
