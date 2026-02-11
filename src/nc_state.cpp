@@ -341,15 +341,13 @@ TargetStateEx* GetTargetStateEx(int32_t index, int32_t sub_index)
 
 TargetStateEx* GetTargetStateEx(const PvGameTarget* org)
 {
+	if (org->multi_count < 0)
+		return GetTargetStateEx(org->target_index, 0);
+
 	int32_t sub_index = 0;
-	for (PvGameTarget* prev = org->prev; prev != nullptr; prev = prev->prev)
-	{
-		if (prev->multi_count != org->multi_count || org->multi_count == -1)
-			break;
-
+	for (PvGameTarget* prev = org->prev; prev && prev->multi_count == org->multi_count; prev = prev->prev)
 		sub_index++;
-	}
-
+	
 	return GetTargetStateEx(org->target_index, sub_index);
 }
 

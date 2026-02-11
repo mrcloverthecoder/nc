@@ -10,19 +10,37 @@
 
 struct NCSharedGameState
 {
-	std::vector<PvGameTarget*> group;
+	std::vector<PvGameTarget*> active_group;
+	std::vector<std::pair<PvGameTarget*, TargetStateEx*>> group;
 	bool mute_slide_chime;
 
 	NCSharedGameState()
 	{
+		active_group.reserve(4);
 		group.reserve(4);
 		mute_slide_chime = false;
 	}
 
-	inline void Reset()
+	void Reset()
 	{
+		active_group.clear();
 		group.clear();
 		mute_slide_chime = false;
+	}
+
+	void PushActiveTarget(PvGameTarget* target)
+	{
+		active_group.push_back(target);
+		if (!group.empty() || target->multi_count < 0)
+			return;
+
+		group.emplace_back(target, GetTargetStateEx(target));
+
+		for (PvGameTarget* prev = target->prev; prev && prev->multi_count == target->multi_count; prev = prev->prev)
+			group.emplace_back(prev, GetTargetStateEx(prev));
+
+		for (PvGameTarget* next = target->next; next && next->multi_count == target->multi_count; next = next->next)
+			group.emplace_back(next, GetTargetStateEx(next));
 	}
 
 } static game_state;
@@ -61,7 +79,7 @@ HOOK(int32_t, __fastcall, GetHitStateInternal, 0x14026D2E0,
 	uint16_t a3,
 	uint16_t a4)
 {
-	game_state.group.push_back(target);
+	game_state.PushActiveTarget(target);
 
 	if (target->target_type < TargetType_Custom || target->target_type >= TargetType_Max)
 		return originalGetHitStateInternal(game, target, a3, a4);
@@ -228,7 +246,7 @@ HOOK(int32_t, __fastcall, GetHitState, 0x14026BF60,
 
 		if (nc::IsHitCorrect(final_hit_state))
 		{
-			if (state.chance_time.CheckTargetInRange(game_state.group[0]->target_index))
+			if (state.chance_time.CheckTargetInRange(game_state.group[0].first->target_index))
 			{
 				int32_t bonus = score::GetChanceTimeScoreBonus(nc::GetHitStateBase(final_hit_state));
 				GetPVGameData()->score += bonus;
@@ -237,9 +255,8 @@ HOOK(int32_t, __fastcall, GetHitState, 0x14026BF60,
 			}
 		}
 
-		for (PvGameTarget* target : game_state.group)
+		for (auto& [target, ex] : game_state.group)
 		{
-			TargetStateEx* ex = GetTargetStateEx(target);
 			ex->hit_state = target->hit_state;
 
 			if (nc::IsHitCorrect(ex->hit_state))
@@ -300,7 +317,7 @@ HOOK(int32_t, __fastcall, GetHitState, 0x14026BF60,
 
 	if (snd_prio == 2 && game_state.group.size() > 0)
 	{
-		for (PvGameTarget* target : game_state.group)
+		for (auto& [target, ex] : game_state.group)
 		{
 			if (target->flying_time_remaining >= game->sad_late_window &&
 				target->flying_time_remaining <= game->sad_early_window)
