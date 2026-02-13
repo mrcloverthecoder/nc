@@ -102,6 +102,7 @@ enum SEType : int32_t
 struct TargetStateExShared
 {
 	int32_t force_hit_state = HitState_None;
+	int32_t ct_score_bonus = 0;
 
 	void Reset();
 };
@@ -142,7 +143,6 @@ struct TargetStateEx
 
 	float sustain_bonus_time = 0.0f;
 	int32_t score_bonus = 0;
-	int32_t ct_score_bonus = 0;
 	bool double_tapped = false;
 	int32_t bal_hit_count = 0;
 

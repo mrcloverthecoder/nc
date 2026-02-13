@@ -57,22 +57,16 @@ int32_t score::CalculateHitScoreBonus(TargetStateEx* target, int32_t* disp)
 		state.score.link_bonus += LinkNoteScoreBonus[target->hit_state];
 
 		for (TargetStateEx* prev = target->prev; prev != nullptr; prev = prev->prev)
-			bonus_disp += prev->ct_score_bonus + prev->score_bonus;
+			bonus_disp += prev->shared_data->ct_score_bonus + prev->score_bonus;
 	}
 	else if (target->IsLongNoteEnd())
 	{
 		bonus += target->prev->score_bonus;
-		bonus_disp += target->prev->ct_score_bonus;
+		bonus_disp += target->prev->shared_data->ct_score_bonus;
 	}
 
 	if (disp)
 		*disp = bonus_disp + bonus;
-
-	if (ct_bonus > 0)
-	{
-		state.score.ct_score_bonus += ct_bonus;
-		target->ct_score_bonus = ct_bonus;
-	}
 
 	target->score_bonus += bonus;
 	return bonus;

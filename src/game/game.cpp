@@ -8,6 +8,7 @@
 #include "hit_state.h"
 #include "score.h"
 #include "sound_effects.h"
+#include "diva.h"
 
 struct NCSharedGameState
 {
@@ -164,6 +165,16 @@ HOOK(int32_t, __fastcall, GetHitState, 0x14026BF60,
 
 	if (ShouldUpdateTargets())
 	{
+		int32_t disp_score = 0;
+		int32_t disp_count = 0;
+		diva::vec2 disp_pos = { };
+		auto addTargetScoreDisp = [&](TargetStateEx* tgt)
+		{
+			disp_score += tgt->score_bonus + tgt->shared_data->ct_score_bonus;
+			disp_pos += tgt->target_pos;
+			disp_count++;
+		};
+
 		for (auto it = state.target_references.begin(); it != state.target_references.end();)
 		{
 			TargetStateEx* tgt = *it;
@@ -181,7 +192,7 @@ HOOK(int32_t, __fastcall, GetHitState, 0x14026BF60,
 				}
 
 				score::CalculateSustainBonus(tgt);
-				GetPVGameData()->ui.SetBonusText(tgt->score_bonus + tgt->ct_score_bonus, tgt->target_pos);
+				addTargetScoreDisp(tgt);
 
 				// NOTE: Check if the start target button has been released;
 				//       if it's the end note is not inside it's timing zone,
@@ -203,7 +214,7 @@ HOOK(int32_t, __fastcall, GetHitState, 0x14026BF60,
 				if (nc::CheckRushNotePops(tgt))
 				{
 					GetPVGameData()->score += score::IncreaseRushPopCount(tgt);
-					GetPVGameData()->ui.SetBonusText(tgt->score_bonus, tgt->target_pos);
+					addTargetScoreDisp(tgt);
 					state.PlayRushHitEffect(GetScaledPosition(tgt->target_pos), 0.6f * (1.0f + tgt->bal_scale), false);
 
 					if (tgt->target_type == TargetType_StarRush)
@@ -217,6 +228,9 @@ HOOK(int32_t, __fastcall, GetHitState, 0x14026BF60,
 
 			it++;
 		}
+
+		if (disp_score > 0 && disp_count > 0)
+			GetPVGameData()->ui.SetBonusText(disp_score, disp_pos / disp_count);
 	}
 
 	final_hit_state = originalGetHitState(
@@ -254,6 +268,7 @@ HOOK(int32_t, __fastcall, GetHitState, 0x14026BF60,
 				int32_t bonus = score::GetChanceTimeScoreBonus(nc::GetHitStateBase(final_hit_state));
 				GetPVGameData()->score += bonus;
 				state.score.ct_score_bonus += bonus;
+				game_state.group[0].second->shared_data->ct_score_bonus = bonus;
 				total_disp_score += bonus;
 			}
 		}

@@ -32,7 +32,6 @@ void TargetStateEx::ResetPlayState()
 	fix_long_kiseki = false;
 	sustain_bonus_time = 0.0f;
 	score_bonus = 0;
-	ct_score_bonus = 0;
 	double_tapped = false;
 	bal_hit_count = 0;
 	bal_scale = 0.0f;
@@ -42,6 +41,7 @@ void TargetStateEx::ResetPlayState()
 void TargetStateExShared::Reset()
 {
 	force_hit_state = HitState_None;
+	ct_score_bonus = 0;
 }
 
 void TargetStateEx::ResetAetData()
