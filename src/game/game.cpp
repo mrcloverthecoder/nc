@@ -32,16 +32,18 @@ struct NCSharedGameState
 	void PushActiveTarget(PvGameTarget* target)
 	{
 		active_group.push_back(target);
-		if (!group.empty() || target->multi_count < 0)
-			return;
+		if (group.empty())
+		{
+			group.emplace_back(target, GetTargetStateEx(target));
+			if (target->multi_count < 0)
+				return;
 
-		group.emplace_back(target, GetTargetStateEx(target));
+			for (PvGameTarget* prev = target->prev; prev && prev->multi_count == target->multi_count; prev = prev->prev)
+				group.emplace_back(prev, GetTargetStateEx(prev));
 
-		for (PvGameTarget* prev = target->prev; prev && prev->multi_count == target->multi_count; prev = prev->prev)
-			group.emplace_back(prev, GetTargetStateEx(prev));
-
-		for (PvGameTarget* next = target->next; next && next->multi_count == target->multi_count; next = next->next)
-			group.emplace_back(next, GetTargetStateEx(next));
+			for (PvGameTarget* next = target->next; next && next->multi_count == target->multi_count; next = next->next)
+				group.emplace_back(next, GetTargetStateEx(next));
+		}
 	}
 
 } static game_state;
