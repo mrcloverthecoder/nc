@@ -34,6 +34,8 @@ private:
 	std::string rush_off;
 };
 
+inline SoundEffectManager se_mgr = { };
+
 namespace sound_effects
 {
 	std::string GetGameSoundEffect(int32_t kind);

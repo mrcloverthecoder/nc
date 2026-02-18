@@ -1,6 +1,7 @@
 #include <hooks.h>
 #include "note_link.h"
 #include "target.h"
+#include "sound_effects.h"
 
 static void PatchCommonKiseki(PvGameTarget* target);
 static void UpdateLongNoteKiseki(PVGameArcade* data, TargetStateEx* ex, float dt);

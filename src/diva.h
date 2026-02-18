@@ -197,6 +197,13 @@ namespace diva
 			return { this->x + right.x, this->y + right.y };
 		}
 
+		inline vec2& operator+=(const vec2& right)
+		{
+			this->x += right.x;
+			this->y += right.y;
+			return *this;
+		}
+
 		inline vec2 operator-() const
 		{
 			return { -this->x, -this->y };

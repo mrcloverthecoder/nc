@@ -7,22 +7,44 @@
 #include "chance_time.h"
 #include "hit_state.h"
 #include "score.h"
+#include "sound_effects.h"
+#include "diva.h"
 
 struct NCSharedGameState
 {
-	std::vector<PvGameTarget*> group;
+	std::vector<PvGameTarget*> active_group;
+	std::vector<std::pair<PvGameTarget*, TargetStateEx*>> group;
 	bool mute_slide_chime;
 
 	NCSharedGameState()
 	{
+		active_group.reserve(4);
 		group.reserve(4);
 		mute_slide_chime = false;
 	}
 
-	inline void Reset()
+	void Reset()
 	{
+		active_group.clear();
 		group.clear();
 		mute_slide_chime = false;
+	}
+
+	void PushActiveTarget(PvGameTarget* target)
+	{
+		active_group.push_back(target);
+		if (group.empty())
+		{
+			group.emplace_back(target, GetTargetStateEx(target));
+			if (target->multi_count < 0)
+				return;
+
+			for (PvGameTarget* prev = target->prev; prev && prev->multi_count == target->multi_count; prev = prev->prev)
+				group.emplace_back(prev, GetTargetStateEx(prev));
+
+			for (PvGameTarget* next = target->next; next && next->multi_count == target->multi_count; next = next->next)
+				group.emplace_back(next, GetTargetStateEx(next));
+		}
 	}
 
 } static game_state;
@@ -61,7 +83,7 @@ HOOK(int32_t, __fastcall, GetHitStateInternal, 0x14026D2E0,
 	uint16_t a3,
 	uint16_t a4)
 {
-	game_state.group.push_back(target);
+	game_state.PushActiveTarget(target);
 
 	if (target->target_type < TargetType_Custom || target->target_type >= TargetType_Max)
 		return originalGetHitStateInternal(game, target, a3, a4);
@@ -143,6 +165,16 @@ HOOK(int32_t, __fastcall, GetHitState, 0x14026BF60,
 
 	if (ShouldUpdateTargets())
 	{
+		int32_t disp_score = 0;
+		int32_t disp_count = 0;
+		diva::vec2 disp_pos = { };
+		auto addTargetScoreDisp = [&](TargetStateEx* tgt)
+		{
+			disp_score += tgt->score_bonus + tgt->shared_data->ct_score_bonus;
+			disp_pos += tgt->target_pos;
+			disp_count++;
+		};
+
 		for (auto it = state.target_references.begin(); it != state.target_references.end();)
 		{
 			TargetStateEx* tgt = *it;
@@ -160,7 +192,7 @@ HOOK(int32_t, __fastcall, GetHitState, 0x14026BF60,
 				}
 
 				score::CalculateSustainBonus(tgt);
-				GetPVGameData()->ui.SetBonusText(tgt->score_bonus + tgt->ct_score_bonus, tgt->target_pos);
+				addTargetScoreDisp(tgt);
 
 				// NOTE: Check if the start target button has been released;
 				//       if it's the end note is not inside it's timing zone,
@@ -182,7 +214,7 @@ HOOK(int32_t, __fastcall, GetHitState, 0x14026BF60,
 				if (nc::CheckRushNotePops(tgt))
 				{
 					GetPVGameData()->score += score::IncreaseRushPopCount(tgt);
-					GetPVGameData()->ui.SetBonusText(tgt->score_bonus, tgt->target_pos);
+					addTargetScoreDisp(tgt);
 					state.PlayRushHitEffect(GetScaledPosition(tgt->target_pos), 0.6f * (1.0f + tgt->bal_scale), false);
 
 					if (tgt->target_type == TargetType_StarRush)
@@ -196,6 +228,9 @@ HOOK(int32_t, __fastcall, GetHitState, 0x14026BF60,
 
 			it++;
 		}
+
+		if (disp_score > 0 && disp_count > 0)
+			GetPVGameData()->ui.SetBonusText(disp_score, disp_pos / disp_count);
 	}
 
 	final_hit_state = originalGetHitState(
@@ -228,18 +263,18 @@ HOOK(int32_t, __fastcall, GetHitState, 0x14026BF60,
 
 		if (nc::IsHitCorrect(final_hit_state))
 		{
-			if (state.chance_time.CheckTargetInRange(game_state.group[0]->target_index))
+			if (state.chance_time.CheckTargetInRange(game_state.group[0].first->target_index))
 			{
 				int32_t bonus = score::GetChanceTimeScoreBonus(nc::GetHitStateBase(final_hit_state));
 				GetPVGameData()->score += bonus;
 				state.score.ct_score_bonus += bonus;
+				game_state.group[0].second->shared_data->ct_score_bonus = bonus;
 				total_disp_score += bonus;
 			}
 		}
 
-		for (PvGameTarget* target : game_state.group)
+		for (auto& [target, ex] : game_state.group)
 		{
-			TargetStateEx* ex = GetTargetStateEx(target);
 			ex->hit_state = target->hit_state;
 
 			if (nc::IsHitCorrect(ex->hit_state))
@@ -300,7 +335,7 @@ HOOK(int32_t, __fastcall, GetHitState, 0x14026BF60,
 
 	if (snd_prio == 2 && game_state.group.size() > 0)
 	{
-		for (PvGameTarget* target : game_state.group)
+		for (auto& [target, ex] : game_state.group)
 		{
 			if (target->flying_time_remaining >= game->sad_late_window &&
 				target->flying_time_remaining <= game->sad_early_window)

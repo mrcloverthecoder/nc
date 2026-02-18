@@ -8,7 +8,6 @@
 #include "db.h"
 #include "game/score.h"
 #include "game/tech_zone.h"
-#include "game/sound_effects.h"
 #include "ui/common.h"
 
 constexpr float ChanceTimeRetainedRate = 0.05; // 5%
@@ -103,6 +102,7 @@ enum SEType : int32_t
 struct TargetStateExShared
 {
 	int32_t force_hit_state = HitState_None;
+	int32_t ct_score_bonus = 0;
 
 	void Reset();
 };
@@ -143,7 +143,6 @@ struct TargetStateEx
 
 	float sustain_bonus_time = 0.0f;
 	int32_t score_bonus = 0;
-	int32_t ct_score_bonus = 0;
 	bool double_tapped = false;
 	int32_t bal_hit_count = 0;
 
@@ -347,7 +346,6 @@ constexpr float KisekiInterval = 1.0f / KisekiRate;
 // NOTE: Global state
 inline MacroState macro_state = { };
 inline StateEx state = { };
-inline SoundEffectManager se_mgr = { };
 
 // NOTE: Helper functions
 TargetStateEx* GetTargetStateEx(int32_t index, int32_t sub_index);
@@ -355,6 +353,7 @@ TargetStateEx* GetTargetStateEx(const PvGameTarget* org);
 
 extern "C" {
 	__declspec(dllexport) StateEx* GetState();
+	__declspec(dllexport) int32_t GetStateGameStyle();
 	__declspec(dllexport) bool SetStateSong(int32_t pv, int32_t difficulty, int32_t edition, int32_t style);
 	__declspec(dllexport) void ResetStateSong();
 }

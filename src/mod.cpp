@@ -18,6 +18,7 @@
 #include "save_data.h"
 #include "util.h"
 #include "game/dsc.h"
+#include "game/sound_effects.h"
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
