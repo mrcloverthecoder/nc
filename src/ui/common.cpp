@@ -412,3 +412,38 @@ std::string GetLanguageSuffix()
 	const char* suffixes[GameLocale_Max] = { "_jp", "_en", "_zh", "_tw", "_kr", "_fr", "_it", "_de", "_sp" };
 	return suffixes[GetGameLocale()];
 }
+
+bool LoadSpriteByName(const char* name, uint32_t* out)
+{
+	prj::string_range range(name);
+	uint32_t* idPtr = GetSpriteId(nullptr, &range);
+
+	if (!idPtr)
+	{
+		*out = 0;
+		return false;
+	}
+
+	*out = *idPtr;
+	return true;
+}
+
+bool LoadSpriteSet(const char* pattern, const char* suffix, uint32_t* out)
+{
+	auto name = util::Format(pattern, suffix);
+	return LoadSpriteByName(name.c_str(), out);
+}
+
+bool LoadSpriteSetArray( const char* pattern, const int* indices, int count, uint32_t* out, const char* suffix )
+{
+	for (int i = 0; i < count; i++)
+	{
+		int idx = indices ? indices[i] : (i + 1);
+
+		auto name = util::Format(pattern, idx, suffix);
+
+		LoadSpriteByName(name.c_str(), &out[i]);
+	}
+
+	return true;
+}

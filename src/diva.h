@@ -1262,3 +1262,6 @@ inline bool ShouldUpdateTargets()
 
 	return false;
 }
+
+// BASED FROM: https://github.com/vixen256/ps4/blob/master/src/diva.cpp
+inline FUNCTION_PTR(uint32_t*, __fastcall, GetSpriteId, 0x1405BC8F0, void* a1, prj::string_range* name);
