@@ -205,3 +205,56 @@ diva::vec2 GetLayoutAdjustedPosition(const AetLayout& layout, std::string_view l
 void DrawSpriteAtLayout(const AetLayout& layout, std::string_view layer_name, uint32_t sprite_id, int32_t prio, int32_t res, bool adjust_pos = false);
 
 std::string GetLanguageSuffix();
+
+bool LoadSpriteByName(const char* name, uint32_t* out);
+bool LoadSpriteSet(const char* pattern, const char* suffix, uint32_t* out);
+bool LoadSpriteSetArray(const char* pattern, const int* indices, int count, uint32_t* out, const char* suffix);
+
+
+enum class InputType : int32_t {
+	XBOX = 0,
+	PLAYSTATION = 1,
+	SWITCH = 2,
+	STEAM = 3,
+	KEYBOARD = 4,
+	UNKNOWN = 5,
+};
+
+inline InputType NormalizeInputType(int32_t raw)
+{
+	switch (raw)
+	{
+	case 0: return InputType::XBOX;
+	case 1: return InputType::SWITCH;
+	case 2: return InputType::PLAYSTATION;
+	case 3: return InputType::STEAM;
+	case 4: return InputType::KEYBOARD;
+	default: return InputType::UNKNOWN;
+	}
+}
+
+inline InputType GetInputType()
+{
+	void* state = diva::GetInputState(0);
+	if (!state)
+		return InputType::UNKNOWN;
+
+	int32_t raw = *reinterpret_cast<int32_t*>(
+		reinterpret_cast<uint64_t>(state) + 0x2E8
+		);
+
+	return NormalizeInputType(raw);
+}
+
+inline const char* GetPlatformSuffix(InputType type)
+{
+	switch (type)
+	{
+	case InputType::KEYBOARD:    return "_pc";
+	case InputType::PLAYSTATION: return "_ps";
+	case InputType::SWITCH:      return "_sw";
+	case InputType::STEAM:       return "_st";
+	case InputType::XBOX:        return "_xb";
+	default:                     return "_pc";
+	}
+}

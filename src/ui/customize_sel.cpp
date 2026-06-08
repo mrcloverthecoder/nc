@@ -14,6 +14,10 @@
 
 constexpr int32_t PreviewQueueIndex = 3;
 constexpr uint32_t SceneID = 14010150;
+constexpr int32_t WindowPrio = 20;
+
+int32_t NCKeyInputFooter = 0;
+static InputType previousInputType = InputType::UNKNOWN;
 
 struct CSStateConfigNC
 {
@@ -34,6 +38,11 @@ struct SelectorExtraData
 	int32_t base_index = 0;
 	int32_t same_id = 0;
 	std::vector<SoundOptionInfo> sounds;
+};
+
+struct PlayCustomizeSelFooterArgs {
+	std::string footerName;
+	int32_t screen;
 };
 
 static void PlayPreviewSoundEffect(HorizontalSelector* sel_base, const void* extra)
@@ -117,31 +126,92 @@ protected:
 	float win_opacity = 1.0f;
 	ConfigSet* config_set;
 
-	static constexpr int32_t WindowPrio = 20;
 	static constexpr int32_t MaxTabCount = 2;
 	static constexpr uint32_t NumberSprites[2][3] = {
 		{ 3084111403, 965335902,  268427239 }, // FT UI
 		{ 880817216,  1732835926, 3315147794 } // MM+ UI
 	};
+	
+	uint32_t TabInfoSpritesFT[2];
+	uint32_t TabInfoSpritesMM[2];
+	
+	uint32_t OptionInfoSpritesMM[MaxTabCount][5];
+	uint32_t OptionInfoSpritesPS4[MaxTabCount][5];
+						  
+	uint32_t SoundPrioSubhelpMM[3];
+	uint32_t SoundPrioSubhelpPS4[3];
 
-	static constexpr uint32_t TabInfoSprites[2][MaxTabCount] = {
-		{ 3180940432, 4017317092 }, // FT UI
-		{ 2099321196, 2806350346 }  // MM+ UI
-	};
+	uint32_t PS4WinTitleSpriteID;
 
-	static constexpr uint32_t OptionInfoSpritesMM[MaxTabCount][5] = {
-		{ 0, 0, 0, 0, 0 },
-		{ 1445577118, 2528592817, 2367656052, 3568576596, 0 }
-	};
 
-	static constexpr uint32_t OptionInfoSpritesPS4[MaxTabCount][5] = {
-		{ 0, 0, 0, 0, 0 },
-		{ 2211731674, 2257174132, 2940751399, 160436885, 0 }
-	};
+	void LoadAllSpriteSet()
+	{
+		std::string suffix = GetLanguageSuffix();
+		for (auto& c : suffix)
+			c = std::toupper(c);
 
-	static constexpr uint32_t SoundPrioSubhelpMM[3] = { 2163775515, 1748614505, 2008681813 };
-	static constexpr uint32_t SoundPrioSubhelpPS4[3] = { 2775564751, 2489232069, 3322578733 };
-	static constexpr uint32_t PS4WinTitleSpriteID = 1861400143;
+		const int OptionInfoIndices[] = { 6, 7, 8, 9 };
+
+		if (game::IsFutureToneMode())
+		{
+
+			LoadSpriteSetArray(
+				"SPR_NSWGAM_NCWIN_NC_CUSTOM_FT_OPTIONS%02d%s",
+				nullptr,
+				2,
+				TabInfoSpritesFT,
+				suffix.c_str()
+			);
+
+			LoadSpriteSetArray(
+				"SPR_NSWGAM_NCWIN_HELP_SUBTXT_NC_FT_%02d%s",
+				nullptr,
+				3,
+				SoundPrioSubhelpPS4,
+				suffix.c_str()
+			);
+
+			LoadSpriteSetArray(
+				"SPR_NSWGAM_NCWIN_HELP_TXT_NC_FT_%02d%s",
+				OptionInfoIndices,
+				4,
+				OptionInfoSpritesPS4[1],
+				suffix.c_str()
+			);
+
+			LoadSpriteSet(
+				"SPR_NSWGAM_NCWIN_NC_CUSTOM_FT_TITLE%s",
+				suffix.c_str(),
+				&PS4WinTitleSpriteID
+			);
+		}
+		else
+		{
+			LoadSpriteSetArray(
+				"SPR_NSWGAM_NCWIN_NC_CUSTOM_OPTIONS%02d%s",
+				nullptr,
+				2,
+				TabInfoSpritesMM,
+				suffix.c_str()
+			);
+
+			LoadSpriteSetArray(
+				"SPR_NSWGAM_NCWIN_HELP_SUBTXT_NC_%02d%s",
+				nullptr,
+				3,
+				SoundPrioSubhelpMM,
+				suffix.c_str()
+			);
+
+			LoadSpriteSetArray(
+				"SPR_NSWGAM_NCWIN_HELP_TXT_NC_%02d%s",
+				OptionInfoIndices,
+				4,
+				OptionInfoSpritesMM[1],
+				suffix.c_str()
+			);
+		}
+	}
 
 	void CreateWindowBase()
 	{
@@ -197,6 +267,7 @@ public:
 		SetScene(SceneID);
 		CreateWindowBase();
 		ChangeTab(0);
+		LoadAllSpriteSet();
 	}
 
 	bool ShouldExit() const { return exit; }
@@ -242,7 +313,7 @@ public:
 		{
 			DrawSpriteAt("p_num_n_c", NumberSprites[0][selected_tab + 1]);
 			DrawSpriteAt("p_num_d_c", NumberSprites[0][MaxTabCount]);
-			DrawSpriteAt("p_win_img_c", TabInfoSprites[0][selected_tab]);
+			DrawSpriteAt("p_win_img_c", TabInfoSpritesFT[selected_tab]);
 			DrawSpriteAt("p_win_tit_lt", PS4WinTitleSpriteID);
 			help_loc.DrawSpriteAt("p_help_loc_c", OptionInfoSpritesPS4[selected_tab][selected_option]);
 
@@ -253,8 +324,8 @@ public:
 		{
 			DrawSpriteAt("p_nc_page_num_10_c", NumberSprites[1][selected_tab + 1]);
 			DrawSpriteAt("p_nc_page_num_01_c", NumberSprites[1][MaxTabCount]);
-			DrawSpriteAt("p_nc_img_02_c", TabInfoSprites[1][prev_selected_tab]);
-			DrawSpriteAt("p_nc_img_01_c", TabInfoSprites[1][selected_tab]);
+			DrawSpriteAt("p_nc_img_02_c", TabInfoSpritesMM[prev_selected_tab]);
+			DrawSpriteAt("p_nc_img_01_c", TabInfoSpritesMM[selected_tab]);
 			help_loc.DrawSpriteAt("p_help_loc_c", OptionInfoSpritesMM[selected_tab][selected_option]);
 
 			if (selected_tab == 1 && selected_option == 3)
@@ -316,7 +387,7 @@ public:
 		{
 			opt = std::make_unique<T>(
 				SceneID,
-				util::Format("ps4_options_base_nc_%02d_ft", id),
+				util::Format("ps4_options_base_nc_%02d_ft%s", id, GetLanguageSuffix().c_str()),
 				WindowPrio,
 				14
 			);
@@ -327,7 +398,7 @@ public:
 		{
 			opt = std::make_unique<T>(
 				SceneID,
-				util::Format("nsw_option_submenu_nc_%02d__f", id),
+				util::Format("nsw_option_submenu_nc_%02d__f%s", id, GetLanguageSuffix().c_str()),
 				WindowPrio,
 				14
 			);
@@ -537,6 +608,25 @@ HOOK(bool, __fastcall, CustomizeSelTaskInit, 0x140687D10, uint64_t a1)
 	return originalCustomizeSelTaskInit(a1);
 }
 
+
+void AddNCInputOptions()
+{
+	aet::Stop(&NCKeyInputFooter);
+
+	std::string layerName =
+		(game::IsFutureToneMode() ? "ps4_" : "nsw_")
+		+ std::string("key_nc")
+		+ GetPlatformSuffix(GetInputType())
+		+ GetLanguageSuffix();
+
+	AetArgs args;
+	int prio = game::IsFutureToneMode() ? WindowPrio+2 : WindowPrio;
+	aet::CreateAetArgs(&args, SceneID, layerName.c_str(), prio);
+	args.res_mode = 14;
+	args.flags = 0x20000;
+	NCKeyInputFooter = aet::Play(&args, NCKeyInputFooter);
+}
+
 HOOK(bool, __fastcall, CustomizeSelTaskCtrl, 0x140687D70, uint64_t a1)
 {
 	if (!cs_state.assets_loaded)
@@ -547,12 +637,19 @@ HOOK(bool, __fastcall, CustomizeSelTaskCtrl, 0x140687D70, uint64_t a1)
 			&& !spr::CheckSprSetLoading(14020060);
 	}
 
+	InputType current = GetInputType();
+	if (current != previousInputType)
+	{
+		previousInputType = current;
+		AddNCInputOptions();
+	}
 	return originalCustomizeSelTaskCtrl(a1);
 }
 
 HOOK(bool, __fastcall, CustomizeSelTaskDest, 0x140687D80, uint64_t a1)
 {
 	customize_sel::window.reset();
+	aet::Stop(&NCKeyInputFooter);
 	sound::UnloadFarc("rom/sound/se_nc.farc");
 	sound::UnloadFarc("rom/sound/se_nc_option.farc");
 	aet::UnloadAetSet(14010060);
@@ -574,6 +671,20 @@ HOOK(void, __fastcall, CSTopMenuMainCtrl, 0x14069B610, uint64_t a1)
 	originalCSTopMenuMainCtrl(a1);
 }
 
+HOOK(void, __fastcall, PlayCustomizeSelFooter, 0x15F9811D0, void* a1, PlayCustomizeSelFooterArgs* args)
+{
+	if (args->footerName == "fotter01" && args->screen == 5) AddNCInputOptions();
+	else aet::Stop(&NCKeyInputFooter);
+	originalPlayCustomizeSelFooter(a1, args);
+}
+
+HOOK(void, __fastcall, StopCustomizeSelFooter, 0x140684A00, void* a1) 
+{
+	aet::Stop(&NCKeyInputFooter);
+	originalStopCustomizeSelFooter(a1);
+}
+
+
 void InstallCustomizeSelHooks()
 {
 	INSTALL_HOOK(CustomizeSelTaskInit);
@@ -581,4 +692,6 @@ void InstallCustomizeSelHooks()
 	INSTALL_HOOK(CustomizeSelTaskDest);
 	INSTALL_HOOK(CustomizeSelTaskDisp);
 	INSTALL_HOOK(CSTopMenuMainCtrl);
+	INSTALL_HOOK(PlayCustomizeSelFooter);
+	INSTALL_HOOK(StopCustomizeSelFooter);				  
 }
