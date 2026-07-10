@@ -82,6 +82,20 @@ void aet::CreateAetArgs(AetArgs* args, uint32_t scene_id, const char* layer_name
 	args->end_marker = end_marker;
 }
 
+AetFKeyframe AetFCurve::GetKey(int32_t index) const
+{
+	if (key_count == 1)
+		return { 0.0f, data[0], 0.0f };
+	return { data[index], data[key_count + index * 2], data[key_count + index * 2 + 1] };
+}
+
+AetFComposition* AetFScene::GetMainComposition()
+{
+	if (composition_count < 1)
+		return nullptr;
+	return &compositions[composition_count - 1];
+}
+
 void aet::Stop(int32_t id)
 {
 	if (id != 0)
@@ -139,6 +153,34 @@ int32_t aet::PlayLayer(uint32_t scene_id, int32_t prio, const char* layer, int32
 	AetArgs args;
 	CreateAetArgsAction(&args, scene_id, layer, prio, action);
 	return PlayLayerAetArgs(&args, 0);
+}
+
+static FUNCTION_PTR(void*, __fastcall, FindAetSetFile, 0x140291250, void* a1, uint32_t index);
+static FUNCTION_PTR(AetFScene*, __fastcall, GetAetSceneByIndex, 0x14028CC40, void* aet_set, uint32_t index);
+static FUNCTION_PTR(AetFComposition*, __fastcall, ImplGetMainCompositionFromScene, 0x14029DA50, void* scene);
+
+AetFComposition* aet::GetMainCompositionFromScene(uint32_t scene_id)
+{
+	AetFScene* scene = GetScene(scene_id);
+	if (!scene)
+		return nullptr;
+
+	return ImplGetMainCompositionFromScene(scene);
+}
+
+AetFScene* aet::GetScene(uint32_t scene_id)
+{
+	const AetSceneInfo& scene_info = *GetAetSceneInfoByID(nullptr, scene_id);
+	// printf("AET SCENE: %s 0x%08x %d %d\n", scene_info.name, scene_info.dword18, scene_info.dword18 >> 0x10, scene_info.dword18 & 0xFFFF);
+	if (scene_info.id == 0xFFFFFFFF)
+		return nullptr;
+
+	void* aet_set = FindAetSetFile(nullptr, scene_info.dword18 >> 0x10);
+	// printf("AET SET: %p %d %d %d %p\n", aet_set, *(int32_t*)((char*)aet_set + 8), *(bool*)((char*)aet_set + 0x28), *(int32_t*)((char*)aet_set + 0x18), *(void**)((char*)aet_set + 0x10));
+	if (!aet_set)
+		return nullptr;
+
+	return GetAetSceneByIndex(aet_set, scene_info.dword18);
 }
 
 int32_t game::GetGlobalPvID()

@@ -19,6 +19,7 @@
 #include "util.h"
 #include "game/dsc.h"
 #include "game/sound_effects.h"
+#include "game/mirai/mirai_game.h"
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
@@ -39,17 +40,25 @@ HOOK(bool, __fastcall, TaskPvGameInit, 0x1405DA040, uint64_t a1)
 		state.nc_chart_entry.reset();
 	}
 
-	prj::string str;
-	prj::string_view strv;
-	aet::LoadAetSet(AetSetID, &str);
-	spr::LoadSprSet(SprSetID, &strv);
-	aet::LoadAetSet(14010080, &str); // AET_NCGAM_TZ
-	spr::LoadSprSet(14020080, &strv); // SPR_NCGAM_TZ
-	
-	if (state.nc_song_entry.has_value() && state.nc_song_entry->IsHitEffectsValid())
+	if (state.IsProjectDIVAGameStyle())
 	{
-		aet::LoadAetSet(state.nc_song_entry->target_hit_effect_aetset_id, &str);
-		spr::LoadSprSet(state.nc_song_entry->target_hit_effect_sprset_id, &strv);
+		prj::string str;
+		prj::string_view strv;
+		aet::LoadAetSet(AetSetID, &str);
+		spr::LoadSprSet(SprSetID, &strv);
+		aet::LoadAetSet(14010080, &str); // AET_NCGAM_TZ
+		spr::LoadSprSet(14020080, &strv); // SPR_NCGAM_TZ
+
+		if (state.nc_song_entry.has_value() && state.nc_song_entry->IsHitEffectsValid())
+		{
+			aet::LoadAetSet(state.nc_song_entry->target_hit_effect_aetset_id, &str);
+			spr::LoadSprSet(state.nc_song_entry->target_hit_effect_sprset_id, &strv);
+		}
+	}
+	else if (state.GetGameStyle() == GameStyle_Mirai)
+	{
+		if (state.nc_song_entry.has_value() && state.nc_chart_entry.has_value())
+			mirai_game::Init(*GetPVGameData(), *state.nc_song_entry, *state.nc_chart_entry);
 	}
 
 	if (!sound::RequestFarcLoad("rom/sound/se_nc.farc"))
@@ -64,7 +73,7 @@ HOOK(bool, __fastcall, TaskPvGameInit, 0x1405DA040, uint64_t a1)
 
 HOOK(bool, __fastcall, TaskPvGameCtrl, 0x1405DA060, uint64_t a1)
 {
-	if (!state.files_loaded)
+	if (!state.files_loaded && state.IsProjectDIVAGameStyle())
 	{
 		state.files_loaded = !aet::CheckAetSetLoading(AetSetID) &&
 			!spr::CheckSprSetLoading(SprSetID) &&
@@ -78,6 +87,10 @@ HOOK(bool, __fastcall, TaskPvGameCtrl, 0x1405DA060, uint64_t a1)
 				!aet::CheckAetSetLoading(state.nc_song_entry->target_hit_effect_aetset_id) &&
 				!spr::CheckSprSetLoading(state.nc_song_entry->target_hit_effect_sprset_id);
 		}
+	}
+	else if (!state.files_loaded && state.GetGameStyle() == GameStyle_Mirai)
+	{
+		state.files_loaded = mirai_game::IsLoaded();
 	}
 
 	return originalTaskPvGameCtrl(a1);

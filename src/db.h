@@ -44,6 +44,7 @@ namespace db
 
 	struct SongEntry
 	{
+		int32_t pv_id = -1;
 		std::string star_se_name      = DefaultStarSound;
 		std::string double_se_name    = DefaultCopySound;
 		std::string long_se_name      = DefaultCopySound;

@@ -484,6 +484,18 @@ enum AetAction : int32_t
 	AetAction_SpecialLoop = 6
 };
 
+enum AetFlags : int32_t
+{
+	AetFlags_End      = 0x1,
+	AetFlags_Reverse  = 0x2,
+	AetFlags_Paused   = 0x4,
+	AetFlags_Hidden   = 0x8,
+	AetFlags_Loop     = 0x10000,
+	AetFlags_PlayOnce = 0x20000,
+	AetFlags_FlipH    = 0x40000,
+	AetFlags_FlipV    = 0x80000,
+};
+
 struct AetArgs
 {
 	uint32_t scene_id = 0;
@@ -552,6 +564,7 @@ struct PvGameplayInfo
 {
 	int32_t type;
 	int32_t difficulty;
+	int32_t edition;
 };
 
 struct PvDscTarget
@@ -876,7 +889,7 @@ struct PVGameData
 	int64_t challenge_time_end;
 	int64_t pv_end_time;
 	float pv_end_time_sec;
-	float float2D33C;
+	float pv_time_sec;
 	uint8_t gap2D340[4];
 	float float2D344;
 	int64_t qword2D348;
@@ -955,6 +968,82 @@ struct AetSceneInfo
 	int32_t dword18;
 	int32_t dword1C;
 };
+
+struct AetFKeyframe
+{
+	float frame;
+	float value;
+	float tangent;
+};
+
+struct AetFCurve
+{
+	int32_t key_count;
+	const float* data;
+
+	AetFKeyframe GetKey(int32_t index) const;
+};
+
+struct AetFLayerVideo
+{
+	uint8_t blend_mode;
+	uint8_t flags;
+	uint8_t track_matte;
+	uint8_t reserved;
+	AetFCurve anchor_x;
+	AetFCurve anchor_y;
+	AetFCurve trans_x;
+	AetFCurve trans_y;
+	AetFCurve rot;
+	AetFCurve scale_x;
+	AetFCurve scale_y;
+	AetFCurve opacity;
+};
+
+struct AetFLayer
+{
+	const char* name;
+	float start_time;
+	float end_time;
+	float offset_time;
+	float time_scale;
+	uint16_t flags;
+	uint8_t quality;
+	uint8_t item_type;
+	void* item;
+	void* parent;
+	int32_t marker_count;
+	void* markers;
+	AetFLayerVideo* video;
+	void* audio;
+};
+
+struct AetFComposition
+{
+	int32_t layer_count;
+	AetFLayer* layers;
+};
+
+struct AetFScene
+{
+	const char* name;
+	float start_frame;
+	float end_frame;
+	float fps;
+	uint8_t bg_color[4];
+	int32_t width;
+	int32_t height;
+	void* camera;
+	int32_t composition_count;
+	AetFComposition* compositions;
+	int32_t video_count;
+	void* videos;
+	int32_t audio_count;
+	void* audios;
+
+	AetFComposition* GetMainComposition();
+};
+
 
 enum GameLocale : int32_t
 {
@@ -1047,6 +1136,9 @@ namespace aet
 	int32_t PlayLayer(uint32_t scene, int32_t prio, int32_t flags, const char* layer, const diva::vec2* pos, const char* start_marker, const char* end_marker);
 
 	int32_t PlayLayer(uint32_t scene_id, int32_t prio, const char* layer, int32_t action);
+
+	AetFComposition* GetMainCompositionFromScene(uint32_t scene_id);
+	AetFScene* GetScene(uint32_t scene_id);
 }
 
 namespace spr
@@ -1071,6 +1163,9 @@ namespace spr
 
 	// FROM: https://github.com/vixen256/ps4/tree/master/src/diva.cpp
 	inline FUNCTION_PTR(uint32_t*, __fastcall, GetSpriteId, 0x1405BC8F0, void* a1, const prj::string_range& name);
+
+	inline FUNCTION_PTR(void, __fastcall, DrawRect, 0x1405B4D40, diva::Rect* rect, int32_t res, int32_t prio, int32_t color, int32_t layer);
+
 }
 
 namespace sound
@@ -1127,6 +1222,7 @@ inline FUNCTION_PTR(bool, __fastcall, IsSuddenEquipped, 0x14024B720, PVGameData*
 
 inline FUNCTION_PTR(AetSetInfo*, __fastcall, GetAetSetInfoByName, 0x140294490, void* a1, const prj::string_range& name);
 inline FUNCTION_PTR(AetSceneInfo*, __fastcall, GetAetSceneInfoByName, 0x140294610, void* a1, const prj::string_range& name);
+inline FUNCTION_PTR(AetSceneInfo*, __fastcall, GetAetSceneInfoByID, 0x140294590, void* a1, uint32_t id);
 
 diva::vec2 GetScaledPosition(const diva::vec2& v);
 

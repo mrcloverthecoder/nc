@@ -15,6 +15,7 @@ enum GameStyle : int32_t
 	GameStyle_Arcade  = 0,
 	GameStyle_Console = 1,
 	GameStyle_Mixed   = 2,
+	GameStyle_Mirai   = 3,
 	GameStyle_Max
 };
 

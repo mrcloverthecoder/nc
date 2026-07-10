@@ -186,6 +186,7 @@ echo "Post-build script was not found."
     <ClCompile Include="src\game\dsc.cpp" />
     <ClCompile Include="src\game\game.cpp" />
     <ClCompile Include="src\game\hit_state.cpp" />
+    <ClCompile Include="src\game\mirai\mirai_game.cpp" />
     <ClCompile Include="src\game\note_link.cpp" />
     <ClCompile Include="src\game\score.cpp" />
     <ClCompile Include="src\game\sound_effects.cpp" />
@@ -212,6 +213,8 @@ echo "Post-build script was not found."
   <ItemGroup>
     <ClInclude Include="src\db.h" />
     <ClInclude Include="src\game\dsc.h" />
+    <ClInclude Include="src\game\mirai\mirai_game.h" />
+    <ClInclude Include="src\game\mirai\mirai_utils.h" />
     <ClInclude Include="src\game\score.h" />
     <ClInclude Include="src\game\sound_effects.h" />
     <ClInclude Include="src\game\tech_zone.h" />

@@ -9,6 +9,7 @@
 #include "score.h"
 #include "sound_effects.h"
 #include "diva.h"
+#include "mirai/mirai_game.h"
 
 struct NCSharedGameState
 {
@@ -76,6 +77,52 @@ void SaveAndPatchCTHeight()
 	PatchFrmBtmHeight(ChanceTimeHeight);
 }
 
+HOOK(void, __fastcall, PVGameArcadeUpdate, 0x14026AFD0,
+	PVGameArcade* game,
+	float delta_time,
+	int32_t* hit_state,
+	bool* play_default_se,
+	diva::vec2* a5,
+	void* a6,
+	void* a7,
+	int32_t* a8,
+	bool a9,
+	bool* a10,
+	bool* a11,
+	bool* a12,
+	bool* a13,
+	bool* a14,
+	bool a15,
+	bool* is_success_note,
+	int32_t a17,
+	int32_t a18,
+	int32_t a19,
+	int32_t* a20,
+	int32_t* target_index)
+{
+	if (GetState()->GetGameStyle() == GameStyle_Mirai)
+	{
+		mirai_game::Update(*GetPVGameData(), delta_time);
+		*play_default_se = false;
+		return;
+	}
+
+	return originalPVGameArcadeUpdate(
+		game, delta_time, hit_state,
+		play_default_se, a5, a6, a7,
+		a8, a9, a10, a11, a12, a13,
+		a14, a15,is_success_note, a17,
+		a18, a19, a20, target_index
+	);
+}
+
+HOOK(int32_t, __fastcall, PVGamePvDataAddTarget, 0x150521630, PVGamePvData& pv_data, size_t target_index)
+{
+	if (!GetState()->IsProjectDIVAGameStyle())
+		return pv_data.targets[target_index].target_count;
+
+	return originalPVGamePvDataAddTarget(pv_data, target_index);
+}
 
 HOOK(int32_t, __fastcall, GetHitStateInternal, 0x14026D2E0,
 	PVGameArcade* game,
@@ -530,6 +577,8 @@ HOOK(void, __fastcall, UpdateGaugeFrame, 0x14027A490, PVGameUI* ui)
 
 void InstallGameHooks()
 {
+	INSTALL_HOOK(PVGameArcadeUpdate);
+	INSTALL_HOOK(PVGamePvDataAddTarget);
 	INSTALL_HOOK(GetHitStateInternal);
 	INSTALL_HOOK(GetHitState);
 	INSTALL_HOOK(UpdateLife);

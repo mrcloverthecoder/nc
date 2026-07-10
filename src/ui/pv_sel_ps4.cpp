@@ -98,13 +98,13 @@ HOOK(void, __fastcall, PVselPS4CreateSortedPVList, 0x140206C30, PVselPS4* sel)
 		style_dirty = true;
 
 	int32_t count = 0;
-	for (int32_t style = pvsel::GetSelectedStyleOrDefault(); count < 3; style++)
+	for (int32_t style = pvsel::GetSelectedStyleOrDefault(); count < GameStyle_Max; style++)
 	{
-		if (song_counts[style % 3] > 0)
+		if (song_counts[style % GameStyle_Max] > 0)
 		{
-			auto songs = pvsel::SortWithStyle(sel->sel_pv_list, sel->difficulty, sel->edition, style % 3);
+			auto songs = pvsel::SortWithStyle(sel->sel_pv_list, sel->difficulty, sel->edition, style % GameStyle_Max);
 			*sel->sel_pv_list.pv_data = songs;
-			sel->song_counts[*sel->cur_sort_index] = song_counts[style % 3];
+			sel->song_counts[*sel->cur_sort_index] = song_counts[style % GameStyle_Max];
 			pvsel::CalculateAllSongCount(sel, CheckSongPertains);
 			PVListSetSelectedIndex(&sel->sel_pv_list, GetSelectedIndex(sel), 0);
 			InitCommonMenuPVList(&sel->cmn_menu, &sel->sel_pv_list);

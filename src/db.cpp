@@ -13,7 +13,7 @@
 //       but for that I have to figure out how to properly handle the default arcade entry
 
 constexpr size_t MaxFilePerRom = 10;
-constexpr std::array<std::string_view, GameStyle_Max> styles_names_internal = { "ARCADE", "CONSOLE", "MIXED" };
+constexpr std::array<std::string_view, GameStyle_Max> styles_names_internal = { "ARCADE", "CONSOLE", "MIXED", "MIRAI" };
 constexpr std::array<std::string_view, 21> pv_lv_names_internal = {
 	"PV_LV_00_0", "PV_LV_00_5", "PV_LV_01_0", "PV_LV_01_5",
 	"PV_LV_02_0", "PV_LV_02_5", "PV_LV_03_0", "PV_LV_03_5",
@@ -171,6 +171,7 @@ HOOK(bool, __fastcall, TaskPvDBParseEntry, 0x1404B1020, uint64_t a1, pv_db::PvDB
 			return true;
 
 		db::SongEntry& nc_song = nc_db.entries[id];
+		nc_song.pv_id = id;
 		for (int32_t i = 0; i < 5; i++)
 		{
 			for (const auto& diff : entry->difficulties[i])

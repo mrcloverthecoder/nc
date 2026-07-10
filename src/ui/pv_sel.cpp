@@ -12,7 +12,7 @@
 constexpr uint32_t AetSelSetID   = 14010050;
 constexpr uint32_t AetSelSceneID = 14010051;
 constexpr uint32_t SprSelSetID   = 14020050;
-constexpr const char* StyleNamesInternal[4] = { "arcade", "console", "mixed", "max" };
+constexpr const char* StyleNamesInternal[GameStyle_Max + 1] = { "arcade", "console", "mixed", "mirai", "max" };
 
 namespace pvsel
 {
@@ -30,6 +30,8 @@ namespace pvsel
 	std::string GSWindow::GetBaseTextLayerName() { return GetModePrefix() + "game_style_txt" + GetLanguageSuffix(); }
 	std::string GSWindow::GetStyleTextLayerName(int32_t style)
 	{
+		if (style == GameStyle_Mirai)
+			style = GameStyle_Mixed;
 		return GetModePrefix() + "game_style_" + StyleNamesInternal[style] + GetLanguageSuffix();
 	}
 
@@ -49,6 +51,8 @@ namespace pvsel
 				options[option_count++] = i;
 			}
 		}
+
+		printf("ac:%d cs:%d mx:%d mi:%d\n", song_counts[0], song_counts[1], song_counts[2], song_counts[3]);
 
 		return options[selected_index] != prev_option;
 	}
@@ -122,6 +126,7 @@ namespace pvsel
 			preferred_style = options[selected_index];
 			dirty = true;
 			sound::PlaySoundEffect(1, "se_ft_music_selector_sortfilter_change_01", 1.0f);
+			printf("sel style: %d\n", options[selected_index]);
 		}
 
 		SetVisible(true);

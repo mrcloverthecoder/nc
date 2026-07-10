@@ -63,3 +63,11 @@ namespace util
 		out[3] = ((color >> 24) & 0xFF) / 255.0f;
 	}
 }
+
+namespace math
+{
+	constexpr float PI = 3.141592653f;
+
+	constexpr float ToRadians(float degrees) { return degrees * (PI / 180.0f); }
+	constexpr float ToDegrees(float radians) { return radians * (180.0f / PI); }
+}

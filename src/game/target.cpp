@@ -2,6 +2,7 @@
 #include "note_link.h"
 #include "target.h"
 #include "sound_effects.h"
+#include "mirai/mirai_game.h"
 
 static void PatchCommonKiseki(PvGameTarget* target);
 static void UpdateLongNoteKiseki(PVGameArcade* data, TargetStateEx* ex, float dt);
@@ -427,6 +428,12 @@ HOOK(void, __fastcall, DrawKiseki, 0x140271030, PvGameTarget* target)
 
 HOOK(void, __fastcall, DrawArcadeGame, 0x140271AB0, PVGameArcade* data)
 {
+	if (GetState()->GetGameStyle() == GameStyle_Mirai)
+	{
+		mirai_game::Disp();
+		return originalDrawArcadeGame(data);
+	}
+
 	for (TargetStateEx* tgt : state.target_references)
 	{
 		if (tgt->IsLongNoteStart() && tgt->holding)

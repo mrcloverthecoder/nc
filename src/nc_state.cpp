@@ -326,6 +326,12 @@ int32_t StateEx::GetGameStyle() const
 	return GameStyle_Arcade;
 }
 
+bool StateEx::IsProjectDIVAGameStyle() const
+{
+	int32_t style = GetGameStyle();
+	return style < GameStyle_Mirai;
+}
+
 int32_t StateEx::CalculateTotalBonusScore() const
 {
 	return score.ct_score_bonus + score.double_tap_bonus + score.sustain_bonus + score.link_bonus + score.rush_bonus;

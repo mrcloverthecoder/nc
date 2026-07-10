@@ -332,6 +332,7 @@ struct StateEx
 
 	int32_t GetScoreMode() const;
 	int32_t GetGameStyle() const;
+	bool IsProjectDIVAGameStyle() const;
 	int32_t CalculateTotalBonusScore() const;
 };
 
