@@ -351,4 +351,6 @@ inline StateEx state = { };
 TargetStateEx* GetTargetStateEx(int32_t index, int32_t sub_index);
 TargetStateEx* GetTargetStateEx(const PvGameTarget* org);
 
+uint32_t GetResolvedSkinType();
+
 extern "C" __declspec(dllexport) StateEx* GetState();

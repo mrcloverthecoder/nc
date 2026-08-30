@@ -4,6 +4,111 @@
 #include "game/hit_state.h"
 #include "nc_state.h"
 
+#include <Psapi.h>
+
+typedef const diva::vec3* (*FnGetBtnLongScale)();
+static FnGetBtnLongScale GetBtnLongScale = nullptr;
+
+typedef const diva::vec3* (*FnGetBtnScale)();
+static FnGetBtnScale GetBtnScale = nullptr;
+
+typedef int32_t(*FnGetSkinType)();
+static FnGetSkinType GetSkinType = nullptr;
+
+diva::vec3 noteScale = { 1.0f, 1.0f, 1.0f };
+
+static HMODULE FindModuleWithExport(const char* exportName)
+{
+	HMODULE modules[512];
+	DWORD needed = 0;
+
+	if (!EnumProcessModules(GetCurrentProcess(), modules, sizeof(modules), &needed))
+		return nullptr;
+
+	size_t count = needed / sizeof(HMODULE);
+
+	for (size_t i = 0; i < count; i++)
+	{
+		FARPROC proc = GetProcAddress(modules[i], exportName);
+		if (proc)
+			return modules[i];
+	}
+
+	return nullptr;
+}
+
+void ResolveBtnScale()
+{
+	HMODULE mod = FindModuleWithExport("GetBtnScale");
+	if (!mod) {
+		GetBtnScale = nullptr;
+		return;
+	}
+
+	GetBtnScale = reinterpret_cast<FnGetBtnScale>(
+		GetProcAddress(mod, "GetBtnScale"));
+
+	if (!GetBtnScale)
+		GetBtnScale = nullptr;
+}
+
+void ResolveBtnLongScale()
+{
+	HMODULE mod = FindModuleWithExport("GetBtnLongScale");
+	if (!mod) {
+		GetBtnLongScale = nullptr;
+		return;
+	}
+
+	GetBtnLongScale = reinterpret_cast<FnGetBtnLongScale>(
+		GetProcAddress(mod, "GetBtnLongScale"));
+
+	if (!GetBtnLongScale)
+		GetBtnLongScale = nullptr;
+}
+
+diva::vec3 ResolveScale(
+	FnGetBtnScale getter,
+	int idx,
+	const diva::vec3& fallback,
+	const char* logTag)
+{
+	diva::vec3 scale = fallback;
+
+	if (getter) {
+		const diva::vec3* arr = getter();
+		if (arr && idx >= 0)
+			scale = arr[idx];
+	}
+
+	return scale;
+}
+
+void ResolveSkinType()
+{
+	HMODULE mod = FindModuleWithExport("GetSkinType");
+	if (!mod) {
+		GetSkinType = nullptr;
+		return;
+	}
+
+	FARPROC proc = GetProcAddress(mod, "GetSkinType");
+	if (!proc) {
+		GetSkinType = nullptr;
+		return;
+	}
+
+	GetSkinType = reinterpret_cast<FnGetSkinType>(proc);
+}
+
+uint32_t GetResolvedSkinType()
+{
+	if (!GetSkinType)
+		return -1;
+
+	return GetSkinType();
+}
+
 void TargetStateEx::ResetPlayState()
 {
 	hold_button = nullptr;
@@ -85,7 +190,21 @@ bool TargetStateEx::SetLongNoteAet()
 	aet::SetPlay(target_aet, false);
 	aet::SetFrame(target_aet, 360.0f);
 
-	diva::vec3 scale = { 1.0f, 1.0f, 1.0f };
+	int idx = -1;
+	switch (target_type) {
+	case TargetType_TriangleLong: idx = 0; break;
+	case TargetType_CircleLong:   idx = 1; break;
+	case TargetType_CrossLong:    idx = 2; break;
+	case TargetType_SquareLong:   idx = 3; break;
+	}
+
+	diva::vec3 scale = ResolveScale(
+		GetBtnLongScale,
+		idx,
+		noteScale,
+		"LongAet"
+	);
+
 	aet::SetScale(target_aet, &scale);
 
 	// NOTE: Free original aets
@@ -125,7 +244,22 @@ bool TargetStateEx::SetRushNoteAet()
 	diva::vec3 pos = { scaled_pos.x, scaled_pos.y, 0.0f };
 	aet::SetPosition(button_aet, &pos);
 
-	diva::vec3 scale = { 1.0f, 1.0f, 1.0f };
+	int idx = -1;
+	switch (target_type) {
+	case TargetType_TriangleRush: idx = 0; break;
+	case TargetType_CircleRush:   idx = 1; break;
+	case TargetType_CrossRush:    idx = 2; break;
+	case TargetType_SquareRush:   idx = 3; break;
+	case TargetType_StarRush:     idx = 4; break;
+	}
+
+	diva::vec3 scale = ResolveScale(
+		GetBtnScale,
+		idx,
+		noteScale,
+		"RushAet"
+	);
+
 	aet::SetScale(button_aet, &scale);
 
 	org->button_aet = 0;
@@ -355,3 +489,13 @@ extern "C" __declspec(dllexport) StateEx* GetState()
 {
 	return &state;
 }
+
+struct BtnLongScaleResolver {
+	BtnLongScaleResolver() {
+		ResolveBtnLongScale();
+		ResolveBtnScale();
+		ResolveSkinType();
+	}
+};
+
+static BtnLongScaleResolver _btnLongScaleResolver;
