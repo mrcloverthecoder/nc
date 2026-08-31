@@ -15,7 +15,11 @@ static FnGetBtnScale GetBtnScale = nullptr;
 typedef int32_t(*FnGetSkinType)();
 static FnGetSkinType GetSkinType = nullptr;
 
+typedef bool (*FnGetIsXtraSkn)();
+static FnGetIsXtraSkn GetIsXtraSkn = nullptr;
+
 diva::vec3 noteScale = { 1.0f, 1.0f, 1.0f };
+bool isXtraSkn = false;
 
 static HMODULE FindModuleWithExport(const char* exportName)
 {
@@ -107,6 +111,26 @@ uint32_t GetResolvedSkinType()
 		return -1;
 
 	return GetSkinType();
+}
+
+void ResolveIsXtraSkn()
+{
+	HMODULE mod = FindModuleWithExport("GetIsXtraSkn");
+	if (!mod)
+	{
+		isXtraSkn = false;
+		return;
+	}
+
+	FARPROC proc = GetProcAddress(mod, "GetIsXtraSkn");
+	if (!proc)
+	{
+		isXtraSkn = false;
+		return;
+	}
+
+	GetIsXtraSkn = reinterpret_cast<FnGetIsXtraSkn>(proc);
+	isXtraSkn = GetIsXtraSkn();
 }
 
 void TargetStateEx::ResetPlayState()
@@ -481,7 +505,7 @@ TargetStateEx* GetTargetStateEx(const PvGameTarget* org)
 	int32_t sub_index = 0;
 	for (PvGameTarget* prev = org->prev; prev && prev->multi_count == org->multi_count; prev = prev->prev)
 		sub_index++;
-	
+
 	return GetTargetStateEx(org->target_index, sub_index);
 }
 
@@ -490,12 +514,13 @@ extern "C" __declspec(dllexport) StateEx* GetState()
 	return &state;
 }
 
-struct BtnLongScaleResolver {
-	BtnLongScaleResolver() {
+struct XtraResolver {
+	XtraResolver() {
 		ResolveBtnLongScale();
 		ResolveBtnScale();
 		ResolveSkinType();
+		ResolveIsXtraSkn();
 	}
 };
 
-static BtnLongScaleResolver _btnLongScaleResolver;
+static XtraResolver _xtraResolver;
