@@ -514,13 +514,9 @@ extern "C" __declspec(dllexport) StateEx* GetState()
 	return &state;
 }
 
-struct XtraResolver {
-	XtraResolver() {
-		ResolveBtnLongScale();
-		ResolveBtnScale();
-		ResolveSkinType();
-		ResolveIsXtraSkn();
-	}
-};
-
-static XtraResolver _xtraResolver;
+void XtraCompatibility() {
+	ResolveBtnLongScale();
+	ResolveBtnScale();
+	ResolveSkinType();
+	ResolveIsXtraSkn();
+}

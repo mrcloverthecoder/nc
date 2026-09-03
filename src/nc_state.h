@@ -355,3 +355,4 @@ uint32_t GetResolvedSkinType();
 
 extern "C" __declspec(dllexport) StateEx* GetState();
 extern bool isXtraSkn;
+void XtraCompatibility();
