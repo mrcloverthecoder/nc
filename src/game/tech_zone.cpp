@@ -75,13 +75,16 @@ void TechZoneDispState::Ctrl()
 
 	if (scene == 0 || layer_name.empty())
 	{
-		// TODO: Implement song's default style (?)
-		//       Detect BricOOtaku's X UI mode and set the style accordingly in 'Match' mode
 		int32_t style = nc::GetSharedData().tech_zone_style;
+		uint32_t skinType = GetResolvedSkinType();
+		if (style == TechZoneStyle_Match) {
 
-		if (style == TechZoneStyle_Match)
-			style = game::IsFutureToneMode() ? TechZoneStyle_FT : TechZoneStyle_M39;
-
+			if (skinType != (uint32_t)-1)
+				style = static_cast<TechZoneStyle>(skinType);
+			else
+				style = game::IsFutureToneMode() ? TechZoneStyle_FT : TechZoneStyle_M39;
+		}
+		
 		switch (style)
 		{
 		case TechZoneStyle_F:
@@ -103,6 +106,11 @@ void TechZoneDispState::Ctrl()
 		case TechZoneStyle_M39:
 			layer_name = "bonus_zone";
 			scene = 14010085;
+			break;
+		default : 
+			layer_name = "bonus_zone";
+			scene = 14010081;
+			break;
 		}
 	}
 

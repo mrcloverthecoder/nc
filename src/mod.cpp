@@ -379,5 +379,6 @@ extern "C"
 	{
 		InstallPvSelHooks();
 		InstallCustomizeSelHooks();
+		XtraCompatibility();
 	}
 };

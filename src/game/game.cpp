@@ -479,10 +479,11 @@ HOOK(void, __fastcall, ExecuteModeSelect, 0x1503B04A0, PVGamePvData* pv_data, in
 		switch (mode)
 		{
 		case ModeSelect_ChallengeStart:
-			PatchFrmBtmHeight(ChallengeTimeHeight);
+			if (!isXtraSkn)
+				PatchFrmBtmHeight(ChallengeTimeHeight);
 			break;
 		case ModeSelect_ChanceStart:
-			SaveAndPatchCTHeight();
+			if (!isXtraSkn) SaveAndPatchCTHeight();
 			SetChanceTimeMode(&pv_data->pv_game->ui, ModeSelect_ChanceStart);
 			break;
 		case ModeSelect_ChanceEnd:
