@@ -1,5 +1,6 @@
 #include "build_info.h"
 #include "nc_state.h"
+#include <save_data.h>
 
 extern "C"
 {
@@ -31,5 +32,10 @@ extern "C"
 	{
 		GetState()->nc_song_entry.reset();
 		GetState()->nc_chart_entry.reset();
+	}
+
+	__declspec(dllexport) int32_t GetSharedTechZoneStyle()
+	{
+		return nc::GetSharedData().tech_zone_style;
 	}
 }
